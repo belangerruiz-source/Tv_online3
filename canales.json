@@ -28,10 +28,12 @@
     ]
   },
   {
-    "name": "YouTube Noticias",
-    "category": "Noticias",
+    "name": "YouTube",
     "sources": [
-      { "type": "youtube", "videoId": "5qap5aO4i9A" }
+      {
+        "type": "youtube",
+        "playlistId": "PLCKML06wO4bnsJRlpO_YycBsJaqE_RfqL"
+      }
     ]
   }
 ]

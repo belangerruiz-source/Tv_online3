@@ -6,7 +6,7 @@ let providers = {};
 let canales = [];
 let hls;
 
-// 🔄 Cargar datos
+// INIT
 async function init() {
   providers = await fetch("providers.json").then(r => r.json());
   canales = await fetch("canales.json").then(r => r.json());
@@ -14,6 +14,7 @@ async function init() {
   renderCanales();
 }
 
+// UI
 function renderCanales() {
   canales.forEach(canal => {
     let div = document.createElement("div");
@@ -26,26 +27,39 @@ function renderCanales() {
   });
 }
 
-// 🎬 Reproductor con fallback
+// 🎬 REPRODUCIR
 async function reproducir(canal) {
 
   info.innerText = "Cargando: " + canal.name;
 
   if (hls) hls.destroy();
 
+  // 🔴 YouTube Playlist
+  let yt = canal.sources.find(s => s.type === "youtube");
+
+  if (yt) {
+    video.style.display = "none";
+
+    document.getElementById("player-container").innerHTML = `
+      <iframe width="100%" height="100%" 
+      src="https://www.youtube.com/embed/videoseries?list=${yt.playlistId}&autoplay=1"
+      frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+    `;
+
+    return;
+  }
+
+  // 🟢 Probar fuentes
   for (let source of canal.sources) {
 
     let url = generarURL(source);
-
     if (!url) continue;
 
     let ok = await probarStream(url);
 
     if (ok) {
-
-      registrarExito(source, canal);
-
       cargarVideo(url);
+      registrarExito(source, canal);
       return;
     } else {
       registrarFallo(source);
@@ -55,19 +69,10 @@ async function reproducir(canal) {
   info.innerText = "Canal no disponible";
 }
 
-// 🔗 Generar URL
+// 🔗 GENERAR URL
 function generarURL(source) {
 
   if (source.type === "hls") return source.url;
-
-  if (source.type === "youtube") {
-    video.style.display = "none";
-    document.getElementById("player-container").innerHTML = `
-      <iframe width="100%" height="100%" 
-      src="https://www.youtube.com/embed/${source.videoId}" 
-      frameborder="0" allowfullscreen></iframe>`;
-    return null;
-  }
 
   if (source.type === "iptv") {
     let p = providers[source.provider];
@@ -77,32 +82,43 @@ function generarURL(source) {
   }
 }
 
-// 🧪 Verificar stream
+// 🧪 PROBAR STREAM (MEJORADO)
 async function probarStream(url) {
   try {
-    let res = await fetch(url, { method: "HEAD" });
+    let res = await fetch(url);
     return res.ok;
   } catch {
     return false;
   }
 }
 
-// 🎥 Cargar video
+// 🎥 PLAYER
 function cargarVideo(url) {
+
   video.style.display = "block";
 
   if (Hls.isSupported()) {
+
     hls = new Hls();
+
     hls.loadSource(url);
     hls.attachMedia(video);
+
+    hls.on(Hls.Events.MANIFEST_PARSED, function () {
+      video.muted = false;
+      video.play().catch(() => {});
+    });
+
   } else {
     video.src = url;
+    video.muted = false;
+    video.play().catch(() => {});
   }
 
   info.innerText = "Reproduciendo";
 }
 
-// ✅ Registrar éxito
+// ✔️ OK
 function registrarExito(source, canal) {
   if (source.provider) {
     let p = providers[source.provider];
@@ -111,12 +127,10 @@ function registrarExito(source, canal) {
     if (!p.channels_ok.includes(canal.name)) {
       p.channels_ok.push(canal.name);
     }
-
-    console.log("Proveedor OK:", source.provider, p.channels_ok.length);
   }
 }
 
-// ❌ Registrar fallo
+// ❌ FAIL
 function registrarFallo(source) {
   if (source.provider) {
     let p = providers[source.provider];
