@@ -16,23 +16,16 @@
           "url": "https://dwstreamlive.akamaized.net/hls/live/2015537/dwstreamlive_es/master.m3u8"
         }
       ]
-    }
-  ]
-  {
-  "providers": {
-    "YouTube ": {
-      "base": "https://www.youtube.com/playlist?list=PLCKML06wO4bnsJRlpO_YycBsJaqE_RfqL",
-      "user": "",
-      "pass": ""
-    }
-  },
-  "canales": [
+    },
     {
       "name": "Canal Ciudades",
+      "category": "YouTube",
       "sources": [
-        {}
+        {
+          "type": "youtube",
+          "playlistId": "PLCKML06wO4bnsJRlpO_YycBsJaqE_RfqL"
+        }
       ]
     }
   ]
-}
 }
