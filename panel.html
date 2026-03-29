@@ -90,6 +90,17 @@ textarea#json {
 <button onclick="addProvider()">Agregar proveedor</button>
 
 </div>
+<div class="section">
+<h2>🔎 Buscar canal en lista M3U</h2>
+
+<textarea id="m3uInput" placeholder="Pega aquí la lista M3U"></textarea>
+
+<input id="searchName" placeholder="Nombre del canal">
+
+<button onclick="buscarCanal()">Buscar</button>
+
+<div id="resultados"></div>
+</div>
 
 <!-- CANALES -->
 <div class="section">
@@ -250,3 +261,63 @@ render();
 
 </body>
 </html>
+let listaM3U = [];
+
+function parseM3U(text) {
+
+  let lines = text.split("\n");
+
+  let canales = [];
+
+  for (let i = 0; i < lines.length; i++) {
+
+    if (lines[i].startsWith("#EXTINF")) {
+
+      let name = lines[i].split(",")[1];
+      let url = lines[i+1];
+
+      canales.push({ name, url });
+
+    }
+  }
+
+  return canales;
+}
+
+function buscarCanal() {
+
+  let text = document.getElementById("m3uInput").value;
+  let nombre = document.getElementById("searchName").value.toLowerCase();
+
+  listaM3U = parseM3U(text);
+
+  let encontrados = listaM3U.filter(c => c.name.toLowerCase().includes(nombre));
+
+  let div = document.getElementById("resultados");
+  div.innerHTML = "";
+
+  encontrados.forEach(c => {
+
+    let item = document.createElement("div");
+
+    item.innerHTML = `
+      ${c.name}
+      <button onclick="agregarDesdeBusqueda('${c.name}','${c.url}')">Agregar</button>
+    `;
+
+    div.appendChild(item);
+  });
+}
+
+function agregarDesdeBusqueda(name, url) {
+
+  data.canales.push({
+    name,
+    category: "IPTV",
+    sources: [
+      { type: "hls", url: url }
+    ]
+  });
+
+  render();
+}
