@@ -6,63 +6,64 @@
 
 <style>
 body {
-  background: #0f1115;
-  color: #e4e6eb;
+  margin:0;
+  background:#0f1115;
+  color:#e4e6eb;
   font-family: Arial, sans-serif;
-  padding: 20px;
 }
 
-h1, h2 {
-  color: #4da6ff;
+.container {
+  max-width: 100%;
+  padding: 15px;
+}
+
+h1,h2 {
+  color:#4da6ff;
 }
 
 .section {
-  border: 1px solid #2a2d35;
-  padding: 15px;
-  margin-bottom: 20px;
-  border-radius: 8px;
-  background: #1a1d24;
+  background:#1a1d24;
+  border-radius:10px;
+  padding:15px;
+  margin-bottom:15px;
 }
 
 input, textarea, select {
-  width: 100%;
-  padding: 10px;
-  margin: 5px 0;
-  background: #0f1115;
-  color: white;
-  border: 1px solid #333;
-  border-radius: 5px;
+  width:100%;
+  padding:10px;
+  margin:5px 0;
+  border-radius:5px;
+  border:1px solid #333;
+  background:#0f1115;
+  color:white;
 }
 
 button {
-  padding: 8px 12px;
-  margin: 5px;
-  cursor: pointer;
-  background: #4da6ff;
-  border: none;
-  border-radius: 5px;
-  color: white;
-}
-
-button:hover {
-  background: #2d8cff;
+  padding:10px;
+  margin:5px 0;
+  border:none;
+  border-radius:6px;
+  background:#4da6ff;
+  color:white;
+  width:100%;
 }
 
 .channel {
-  border-bottom: 1px solid #333;
-  padding: 8px;
-  display: flex;
-  justify-content: space-between;
+  padding:8px;
+  border-bottom:1px solid #333;
+  display:flex;
+  justify-content:space-between;
 }
 
 textarea#json {
-  height: 350px;
+  height:300px;
 }
 </style>
-
 </head>
 
 <body>
+
+<div class="container">
 
 <h1>📺 Panel IPTV PRO</h1>
 
@@ -71,48 +72,47 @@ textarea#json {
 <h2>➕ Proveedores</h2>
 
 <select id="prov_type">
-  <option value="m3u">M3U</option>
-  <option value="xtream">Xtream</option>
+<option value="m3u">M3U</option>
+<option value="xtream">Xtream</option>
 </select>
 
 <input id="prov_name" placeholder="Nombre proveedor">
 
-<div id="m3u_fields">
-  <input id="prov_url" placeholder="URL M3U">
-</div>
+<input id="prov_url" placeholder="URL M3U">
 
-<div id="xtream_fields" style="display:none;">
-  <input id="prov_base" placeholder="Base URL">
-  <input id="prov_user" placeholder="Usuario">
-  <input id="prov_pass" placeholder="Password">
+<div id="xtream_block" style="display:none;">
+<input id="prov_base" placeholder="Base URL">
+<input id="prov_user" placeholder="Usuario">
+<input id="prov_pass" placeholder="Password">
 </div>
 
 <button onclick="addProvider()">Agregar proveedor</button>
 
 </div>
+
+<!-- BUSCADOR M3U -->
 <div class="section">
 <h2>🔎 Buscar canal en lista M3U</h2>
 
 <textarea id="m3uInput" placeholder="Pega aquí la lista M3U"></textarea>
 
-<input id="searchName" placeholder="Nombre del canal">
+<input id="searchName" placeholder="Nombre canal">
 
 <button onclick="buscarCanal()">Buscar</button>
 
 <div id="resultados"></div>
+
 </div>
 
 <!-- CANALES -->
 <div class="section">
-<h2>➕ Canales (múltiples)</h2>
+<h2>➕ Canales manuales</h2>
 
 <textarea id="bulk" placeholder="
 Formato:
-
 nombre|tipo|valor|categoria|proveedor
 
-Ejemplo:
-
+Ej:
 DW Español|hls|https://...|Noticias|
 HBO|iptv|12345|Películas|p1
 "></textarea>
@@ -130,8 +130,15 @@ HBO|iptv|12345|Películas|p1
 <!-- JSON -->
 <div class="section">
 <h2>💾 JSON</h2>
+
+<button onclick="resetJSON()">Rehacer JSON</button>
+
 <textarea id="json"></textarea>
+
 <button onclick="download()">Descargar config.json</button>
+
+</div>
+
 </div>
 
 <script>
@@ -141,19 +148,13 @@ let data = {
   canales: []
 };
 
-// 🔥 CARGAR DESDE LOCALSTORAGE
+// 🔥 CARGAR LOCAL
 let saved = localStorage.getItem("iptv_data");
 if (saved) data = JSON.parse(saved);
 
-// 🔄 CAMBIO TIPO PROVIDER
+// 🔁 CAMBIO TIPO
 prov_type.onchange = () => {
-  if (prov_type.value === "m3u") {
-    m3u_fields.style.display = "block";
-    xtream_fields.style.display = "none";
-  } else {
-    m3u_fields.style.display = "none";
-    xtream_fields.style.display = "block";
-  }
+  xtream_block.style.display = prov_type.value === "xtream" ? "block" : "none";
 };
 
 // ➕ PROVEEDOR
@@ -180,7 +181,63 @@ function addProvider() {
   render();
 }
 
-// ➕ CANALES
+// 🔎 PARSE M3U
+function parseM3U(text) {
+
+  let lines = text.split("\n");
+  let canales = [];
+
+  for (let i = 0; i < lines.length; i++) {
+
+    if (lines[i].startsWith("#EXTINF")) {
+      let name = lines[i].split(",")[1];
+      let url = lines[i+1];
+
+      canales.push({ name, url });
+    }
+  }
+
+  return canales;
+}
+
+// 🔎 BUSCAR
+function buscarCanal() {
+
+  let lista = parseM3U(m3uInput.value);
+  let nombre = searchName.value.toLowerCase();
+
+  let encontrados = lista.filter(c => c.name.toLowerCase().includes(nombre));
+
+  resultados.innerHTML = "";
+
+  encontrados.forEach(c => {
+
+    let div = document.createElement("div");
+
+    div.innerHTML = `
+      ${c.name}
+      <button onclick="agregarDesdeBusqueda('${c.name}','${c.url}')">Agregar</button>
+    `;
+
+    resultados.appendChild(div);
+  });
+}
+
+// ➕ AGREGAR DESDE BUSQUEDA
+function agregarDesdeBusqueda(name, url) {
+
+  data.canales.push({
+    name,
+    category: "IPTV",
+    sources: [
+      { type: "hls", url: url }
+    ]
+  });
+
+  render();
+}
+
+// ➕ MANUAL
 function addBulk() {
 
   let lines = bulk.value.split("\n");
@@ -193,13 +250,8 @@ function addBulk() {
 
     let source = {};
 
-    if (type === "hls") {
-      source = { type: "hls", url: value };
-    }
-
-    if (type === "iptv") {
-      source = { type: "iptv", provider: provider, stream_id: value };
-    }
+    if (type === "hls") source = { type: "hls", url: value };
+    if (type === "iptv") source = { type: "iptv", provider, stream_id: value };
 
     data.canales.push({
       name,
@@ -213,10 +265,16 @@ function addBulk() {
   render();
 }
 
-// ❌ ELIMINAR
+// ❌ BORRAR
 function removeChannel(i) {
-  if (confirm("Eliminar canal?")) {
-    data.canales.splice(i, 1);
+  data.canales.splice(i, 1);
+  render();
+}
+
+// 🔄 REHACER JSON
+function resetJSON() {
+  if (confirm("Reiniciar todo?")) {
+    data = { providers:{}, canales:[] };
     render();
   }
 }
@@ -224,31 +282,29 @@ function removeChannel(i) {
 // 🔄 RENDER
 function render() {
 
-  let list = document.getElementById("list");
   list.innerHTML = "";
 
-  data.canales.forEach((c, i) => {
+  data.canales.forEach((c,i) => {
 
     let div = document.createElement("div");
     div.className = "channel";
 
     div.innerHTML = `
-      <span>${c.name} (${c.category})</span>
-      <button onclick="removeChannel(${i})">Eliminar</button>
+      ${c.name}
+      <button onclick="removeChannel(${i})">❌</button>
     `;
 
     list.appendChild(div);
   });
 
-  json.value = JSON.stringify(data, null, 2);
+  json.value = JSON.stringify(data,null,2);
 
-  // 🔥 guardar automático
   localStorage.setItem("iptv_data", JSON.stringify(data));
 }
 
 // 💾 DESCARGAR
 function download() {
-  let blob = new Blob([JSON.stringify(data)], {type: "application/json"});
+  let blob = new Blob([JSON.stringify(data)], {type:"application/json"});
   let a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "config.json";
@@ -261,63 +317,3 @@ render();
 
 </body>
 </html>
-let listaM3U = [];
-
-function parseM3U(text) {
-
-  let lines = text.split("\n");
-
-  let canales = [];
-
-  for (let i = 0; i < lines.length; i++) {
-
-    if (lines[i].startsWith("#EXTINF")) {
-
-      let name = lines[i].split(",")[1];
-      let url = lines[i+1];
-
-      canales.push({ name, url });
-
-    }
-  }
-
-  return canales;
-}
-
-function buscarCanal() {
-
-  let text = document.getElementById("m3uInput").value;
-  let nombre = document.getElementById("searchName").value.toLowerCase();
-
-  listaM3U = parseM3U(text);
-
-  let encontrados = listaM3U.filter(c => c.name.toLowerCase().includes(nombre));
-
-  let div = document.getElementById("resultados");
-  div.innerHTML = "";
-
-  encontrados.forEach(c => {
-
-    let item = document.createElement("div");
-
-    item.innerHTML = `
-      ${c.name}
-      <button onclick="agregarDesdeBusqueda('${c.name}','${c.url}')">Agregar</button>
-    `;
-
-    div.appendChild(item);
-  });
-}
-
-function agregarDesdeBusqueda(name, url) {
-
-  data.canales.push({
-    name,
-    category: "IPTV",
-    sources: [
-      { type: "hls", url: url }
-    ]
-  });
-
-  render();
-}
