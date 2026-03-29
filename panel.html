@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Panel IPTV</title>
+<title>Panel IPTV PRO</title>
 
 <style>
 body {
@@ -12,22 +12,27 @@ body {
   padding: 20px;
 }
 
-input, select {
+.section {
+  border: 1px solid #333;
+  padding: 10px;
+  margin-bottom: 20px;
+}
+
+input, textarea {
+  width: 100%;
   padding: 8px;
-  margin: 5px;
+  margin: 5px 0;
 }
 
 button {
-  padding: 8px 12px;
+  padding: 8px;
   margin: 5px;
   cursor: pointer;
 }
 
-textarea {
-  width: 100%;
-  height: 200px;
-  background: #000;
-  color: #0f0;
+.channel {
+  border-bottom: 1px solid #333;
+  padding: 5px;
 }
 </style>
 
@@ -35,29 +40,52 @@ textarea {
 
 <body>
 
-<h1>📺 Panel IPTV</h1>
+<h1>📺 Panel IPTV PRO</h1>
 
-<h2>Agregar canal</h2>
+<!-- PROVEEDORES -->
+<div class="section">
+<h2>➕ Proveedores</h2>
 
-<input id="name" placeholder="Nombre canal">
-<input id="category" placeholder="Categoría">
+<input id="prov_name" placeholder="Nombre proveedor">
+<input id="prov_base" placeholder="Base URL">
+<input id="prov_user" placeholder="Usuario">
+<input id="prov_pass" placeholder="Password">
 
-<select id="type">
-  <option value="hls">HLS</option>
-  <option value="iptv">IPTV</option>
-  <option value="youtube">YouTube</option>
-</select>
+<button onclick="addProvider()">Agregar proveedor</button>
 
-<input id="value" placeholder="URL / stream_id / playlistId">
-<input id="provider" placeholder="Proveedor (si IPTV)">
+</div>
 
-<button onclick="add()">Agregar</button>
+<!-- CANALES -->
+<div class="section">
+<h2>➕ Canales (puedes agregar varios)</h2>
 
-<h2>JSON</h2>
+<textarea id="bulk" placeholder="
+Formato por línea:
 
-<textarea id="output"></textarea>
+nombre|tipo|valor|categoria|proveedor
 
+Ejemplo:
+DW Español|hls|https://...|Noticias|
+HBO|iptv|12345|Películas|p1
+YouTube Noticias|youtube|PLXXXXX|Noticias|
+"></textarea>
+
+<button onclick="addBulk()">Agregar canales</button>
+
+</div>
+
+<!-- LISTA -->
+<div class="section">
+<h2>📋 Lista de canales</h2>
+<div id="list"></div>
+</div>
+
+<!-- JSON -->
+<div class="section">
+<h2>💾 JSON</h2>
+<textarea id="json"></textarea>
 <button onclick="download()">Guardar config.json</button>
+</div>
 
 <script>
 
@@ -66,48 +94,85 @@ let data = {
   canales: []
 };
 
-function add() {
+// 🔥 AGREGAR PROVEEDOR
+function addProvider() {
+  let name = prov_name.value;
 
-  let name = document.getElementById("name").value;
-  let category = document.getElementById("category").value;
-  let type = document.getElementById("type").value;
-  let value = document.getElementById("value").value;
-  let provider = document.getElementById("provider").value;
-
-  let source = {};
-
-  if (type === "hls") {
-    source = { type: "hls", url: value };
-  }
-
-  if (type === "youtube") {
-    source = { type: "youtube", playlistId: value };
-  }
-
-  if (type === "iptv") {
-    source = { type: "iptv", provider: provider, stream_id: value };
-
-    data.providers[provider] = {
-      base: "http://server",
-      user: "user",
-      pass: "pass"
-    };
-  }
-
-  data.canales.push({
-    name,
-    category,
-    sources: [source]
-  });
+  data.providers[name] = {
+    base: prov_base.value,
+    user: prov_user.value,
+    pass: prov_pass.value
+  };
 
   render();
 }
 
-function render() {
-  document.getElementById("output").value =
-    JSON.stringify(data, null, 2);
+// 🔥 AGREGAR MUCHOS CANALES
+function addBulk() {
+
+  let lines = bulk.value.split("\n");
+
+  lines.forEach(line => {
+
+    if (!line.trim()) return;
+
+    let [name, type, value, category, provider] = line.split("|");
+
+    let source = {};
+
+    if (type === "hls") {
+      source = { type: "hls", url: value };
+    }
+
+    if (type === "youtube") {
+      source = { type: "youtube", playlistId: value };
+    }
+
+    if (type === "iptv") {
+      source = { type: "iptv", provider: provider, stream_id: value };
+    }
+
+    data.canales.push({
+      name,
+      category,
+      sources: [source]
+    });
+
+  });
+
+  bulk.value = "";
+  render();
 }
 
+// 🔥 ELIMINAR CANAL
+function removeChannel(index) {
+  data.canales.splice(index, 1);
+  render();
+}
+
+// 🔥 RENDER
+function render() {
+
+  let list = document.getElementById("list");
+  list.innerHTML = "";
+
+  data.canales.forEach((c, i) => {
+
+    let div = document.createElement("div");
+    div.className = "channel";
+
+    div.innerHTML = `
+      ${c.name} (${c.category})
+      <button onclick="removeChannel(${i})">❌</button>
+    `;
+
+    list.appendChild(div);
+  });
+
+  json.value = JSON.stringify(data, null, 2);
+}
+
+// 💾 DESCARGAR JSON
 function download() {
   let blob = new Blob([JSON.stringify(data)], {type: "application/json"});
   let a = document.createElement("a");
