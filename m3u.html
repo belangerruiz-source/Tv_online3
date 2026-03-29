@@ -1,54 +1,60 @@
 <!DOCTYPE html>
 <html>
-<body>
+<head>
+<meta charset="UTF-8">
+<title>M3U Generator</title>
+</head>
 
-<pre id="out"></pre>
+<body>
 
 <script>
 
 async function generar() {
 
-  let res = await fetch("config.json");
-  let data = await res.json();
+  try {
 
-  let { providers, canales } = data;
+    let res = await fetch("config.json");
+    let data = await res.json();
 
-  let m3u = "#EXTM3U\n\n";
+    let { providers, canales } = data;
 
-  canales.forEach(c => {
+    let m3u = "#EXTM3U\n\n";
 
-    let s = c.sources[0];
-    let url = "";
+    canales.forEach(c => {
 
-    if (s.type === "hls") url = s.url;
+      let s = c.sources[0];
+      let url = "";
 
-    if (s.type === "iptv") {
-      let p = providers[s.provider];
-      url = `${p.base}/live/${p.user}/${p.pass}/${s.stream_id}.m3u8`;
-    }
+      if (s.type === "hls") {
+        url = s.url;
+      }
 
-    if (s.type === "youtube") {
-      url = `https://www.youtube.com/watch?v=${s.playlistId}`;
-    }
+      if (s.type === "iptv") {
+        let p = providers[s.provider];
+        if (p) {
+          url = `${p.base}/live/${p.user}/${p.pass}/${s.stream_id}.m3u8`;
+        }
+      }
 
-    m3u += `#EXTINF:-1 group-title="${c.category}",${c.name}\n`;
-    m3u += url + "\n\n";
+      // ❌ YouTube NO se incluye en M3U
+      if (s.type === "youtube") return;
 
-  });
+      if (!url) return;
 
-  document.body.innerText = m3u;
+      m3u += `#EXTINF:-1 group-title="${c.category}",${c.name}\n`;
+      m3u += url + "\n\n";
 
-}
+    });
 
-generar();
+    // 🔥 IMPORTANTE: esto imprime SOLO el M3U
+    document.open();
+    document.write(m3u);
+    document.close();
 
-</script>
+  } catch (e) {
+    document.body.innerText = "Error: " + e;
+  }
 
-</body>
-</html>
-  });
-
-  document.body.innerText = m3u;
 }
 
 generar();
