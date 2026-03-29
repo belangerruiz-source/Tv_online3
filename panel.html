@@ -6,33 +6,57 @@
 
 <style>
 body {
-  background: #111;
-  color: white;
-  font-family: sans-serif;
+  background: #0f1115;
+  color: #e4e6eb;
+  font-family: Arial, sans-serif;
   padding: 20px;
 }
 
+h1, h2 {
+  color: #4da6ff;
+}
+
 .section {
-  border: 1px solid #333;
-  padding: 10px;
+  border: 1px solid #2a2d35;
+  padding: 15px;
   margin-bottom: 20px;
+  border-radius: 8px;
+  background: #1a1d24;
 }
 
 input, textarea {
   width: 100%;
-  padding: 8px;
+  padding: 10px;
   margin: 5px 0;
+  background: #0f1115;
+  color: white;
+  border: 1px solid #333;
+  border-radius: 5px;
 }
 
 button {
-  padding: 8px;
+  padding: 8px 12px;
   margin: 5px;
   cursor: pointer;
+  background: #4da6ff;
+  border: none;
+  border-radius: 5px;
+  color: white;
+}
+
+button:hover {
+  background: #2d8cff;
 }
 
 .channel {
   border-bottom: 1px solid #333;
-  padding: 5px;
+  padding: 8px;
+  display: flex;
+  justify-content: space-between;
+}
+
+textarea#json {
+  height: 350px;
 }
 </style>
 
@@ -46,13 +70,12 @@ button {
 <div class="section">
 <h2>➕ Proveedores</h2>
 
-<input id="prov_name" placeholder="Nombre proveedor">
+<input id="prov_name" placeholder="Nombre proveedor (ej: p1)">
 <input id="prov_base" placeholder="Base URL">
 <input id="prov_user" placeholder="Usuario">
 <input id="prov_pass" placeholder="Password">
 
 <button onclick="addProvider()">Agregar proveedor</button>
-
 </div>
 
 <!-- CANALES -->
@@ -60,14 +83,18 @@ button {
 <h2>➕ Canales (puedes agregar varios)</h2>
 
 <textarea id="bulk" placeholder="
-Formato por línea:
+Formato:
 
 nombre|tipo|valor|categoria|proveedor
 
-Ejemplo:
-DW Español|hls|https://...|Noticias|
+Ejemplos:
+
+DW Español|hls|https://dwstreamlive.akamaized.net/hls/live/...|Noticias|
+France24|hls|https://static.france24.com/live/...|Noticias|
 HBO|iptv|12345|Películas|p1
 YouTube Noticias|youtube|PLXXXXX|Noticias|
+
+👉 Para YouTube usa SOLO el ID de la playlist (PLXXXXX)
 "></textarea>
 
 <button onclick="addBulk()">Agregar canales</button>
@@ -84,18 +111,36 @@ YouTube Noticias|youtube|PLXXXXX|Noticias|
 <div class="section">
 <h2>💾 JSON</h2>
 <textarea id="json"></textarea>
-<button onclick="download()">Guardar config.json</button>
+<button onclick="download()">Descargar config.json</button>
 </div>
 
 <script>
 
 let data = {
   providers: {},
-  canales: []
+  canales: [
+
+    // 🔥 CANALES LIBRES INICIALES
+    {
+      name: "DW Español",
+      category: "Noticias",
+      sources: [
+        { type: "hls", url: "https://dwstreamlive.akamaized.net/hls/live/2015537/dwstreamlive_es/master.m3u8" }
+      ]
+    },
+    {
+      name: "France 24 Español",
+      category: "Noticias",
+      sources: [
+        { type: "hls", url: "https://static.france24.com/live/F24_ES_HI_HLS/live_web.m3u8" }
+      ]
+    }
+  ]
 };
 
-// 🔥 AGREGAR PROVEEDOR
+// ➕ PROVEEDOR
 function addProvider() {
+
   let name = prov_name.value;
 
   data.providers[name] = {
@@ -107,7 +152,7 @@ function addProvider() {
   render();
 }
 
-// 🔥 AGREGAR MUCHOS CANALES
+// ➕ CANALES MASIVOS
 function addBulk() {
 
   let lines = bulk.value.split("\n");
@@ -144,13 +189,15 @@ function addBulk() {
   render();
 }
 
-// 🔥 ELIMINAR CANAL
+// ❌ ELIMINAR CANAL
 function removeChannel(index) {
-  data.canales.splice(index, 1);
-  render();
+  if (confirm("¿Eliminar canal?")) {
+    data.canales.splice(index, 1);
+    render();
+  }
 }
 
-// 🔥 RENDER
+// 🔄 RENDER
 function render() {
 
   let list = document.getElementById("list");
@@ -162,8 +209,8 @@ function render() {
     div.className = "channel";
 
     div.innerHTML = `
-      ${c.name} (${c.category})
-      <button onclick="removeChannel(${i})">❌</button>
+      <span>${c.name} (${c.category})</span>
+      <button onclick="removeChannel(${i})">Eliminar</button>
     `;
 
     list.appendChild(div);
@@ -172,7 +219,7 @@ function render() {
   json.value = JSON.stringify(data, null, 2);
 }
 
-// 💾 DESCARGAR JSON
+// 💾 DESCARGAR
 function download() {
   let blob = new Blob([JSON.stringify(data)], {type: "application/json"});
   let a = document.createElement("a");
@@ -180,6 +227,9 @@ function download() {
   a.download = "config.json";
   a.click();
 }
+
+// INIT
+render();
 
 </script>
 
