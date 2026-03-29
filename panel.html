@@ -7,14 +7,15 @@
 <style>
 body {
   margin:0;
-  background:#0f1115;
-  color:#e4e6eb;
-  font-family: Arial, sans-serif;
+  background:#121212;
+  color:#eaeaea;
+  font-family: Arial;
+  font-size:16px;
 }
 
 .container {
-  max-width: 100%;
-  padding: 15px;
+  padding:15px;
+  max-width:100%;
 }
 
 h1,h2 {
@@ -22,274 +23,236 @@ h1,h2 {
 }
 
 .section {
-  background:#1a1d24;
-  border-radius:10px;
+  background:#1e1e1e;
   padding:15px;
   margin-bottom:15px;
+  border-radius:10px;
 }
 
 input, textarea, select {
   width:100%;
-  padding:10px;
+  padding:8px;
   margin:5px 0;
-  border-radius:5px;
-  border:1px solid #333;
-  background:#0f1115;
+  background:#000;
   color:white;
+  border:1px solid #333;
+  border-radius:6px;
 }
 
 button {
-  padding:10px;
-  margin:5px 0;
+  padding:6px 10px;
+  margin:5px;
+  background:#4da6ff;
   border:none;
   border-radius:6px;
-  background:#4da6ff;
   color:white;
-  width:100%;
+  width:auto;
 }
 
-.channel {
+.result {
   padding:8px;
   border-bottom:1px solid #333;
   display:flex;
   justify-content:space-between;
 }
-
-textarea#json {
-  height:300px;
-}
 </style>
+
 </head>
 
 <body>
 
 <div class="container">
 
-<h1>📺 Panel IPTV PRO</h1>
+<h1>📺 Panel IPTV</h1>
 
 <!-- PROVEEDORES -->
 <div class="section">
-<h2>➕ Proveedores</h2>
+<h2>Proveedores</h2>
 
 <select id="prov_type">
 <option value="m3u">M3U</option>
 <option value="xtream">Xtream</option>
 </select>
 
-<input id="prov_name" placeholder="Nombre proveedor">
+<input id="prov_name" placeholder="Nombre">
 
 <input id="prov_url" placeholder="URL M3U">
 
 <div id="xtream_block" style="display:none;">
-<input id="prov_base" placeholder="Base URL">
-<input id="prov_user" placeholder="Usuario">
-<input id="prov_pass" placeholder="Password">
+<input id="prov_base" placeholder="Base">
+<input id="prov_user" placeholder="User">
+<input id="prov_pass" placeholder="Pass">
 </div>
 
-<button onclick="addProvider()">Agregar proveedor</button>
+<button onclick="addProvider()">Agregar</button>
+<button onclick="cargarLista()">Cargar lista</button>
 
 </div>
 
-<!-- BUSCADOR M3U -->
+<!-- BUSCADOR -->
 <div class="section">
-<h2>🔎 Buscar canal en lista M3U</h2>
-
-<textarea id="m3uInput" placeholder="Pega aquí la lista M3U"></textarea>
+<h2>Buscar canal</h2>
 
 <input id="searchName" placeholder="Nombre canal">
 
-<button onclick="buscarCanal()">Buscar</button>
+<button onclick="buscar()">Buscar</button>
 
 <div id="resultados"></div>
-
-</div>
-
-<!-- CANALES -->
-<div class="section">
-<h2>➕ Canales manuales</h2>
-
-<textarea id="bulk" placeholder="
-Formato:
-nombre|tipo|valor|categoria|proveedor
-
-Ej:
-DW Español|hls|https://...|Noticias|
-HBO|iptv|12345|Películas|p1
-"></textarea>
-
-<button onclick="addBulk()">Agregar canales</button>
-
 </div>
 
 <!-- LISTA -->
 <div class="section">
-<h2>📋 Canales</h2>
+<h2>Canales</h2>
 <div id="list"></div>
 </div>
 
 <!-- JSON -->
 <div class="section">
-<h2>💾 JSON</h2>
+<h2>JSON</h2>
 
-<button onclick="resetJSON()">Rehacer JSON</button>
-
+<button onclick="resetJSON()">Reiniciar</button>
 <textarea id="json"></textarea>
 
-<button onclick="download()">Descargar config.json</button>
-
+<button onclick="download()">Descargar</button>
 </div>
 
 </div>
 
 <script>
 
-let data = {
-  providers: {},
-  canales: []
-};
+let data = { providers:{}, canales:[] };
+let cache = {}; // 🔥 listas cargadas
 
-// 🔥 CARGAR LOCAL
+// cargar guardado
 let saved = localStorage.getItem("iptv_data");
 if (saved) data = JSON.parse(saved);
 
-// 🔁 CAMBIO TIPO
+// UI xtream
 prov_type.onchange = () => {
   xtream_block.style.display = prov_type.value === "xtream" ? "block" : "none";
 };
 
-// ➕ PROVEEDOR
+// agregar proveedor
 function addProvider() {
 
   let name = prov_name.value;
 
   if (prov_type.value === "m3u") {
-    data.providers[name] = {
-      type: "m3u",
-      url: prov_url.value
-    };
+    data.providers[name] = { type:"m3u", url:prov_url.value };
   }
 
   if (prov_type.value === "xtream") {
     data.providers[name] = {
-      type: "xtream",
-      base: prov_base.value,
-      user: prov_user.value,
-      pass: prov_pass.value
+      type:"xtream",
+      base:prov_base.value,
+      user:prov_user.value,
+      pass:prov_pass.value
     };
   }
 
   render();
 }
 
-// 🔎 PARSE M3U
+// 🔥 cargar lista UNA VEZ
+async function cargarLista() {
+
+  let name = prov_name.value;
+  let p = data.providers[name];
+
+  if (!p) return alert("Proveedor no existe");
+
+  if (p.type !== "m3u") return alert("Solo M3U aquí");
+
+  try {
+    let res = await fetch(p.url);
+    let text = await res.text();
+
+    cache[name] = parseM3U(text);
+
+    alert("Lista cargada: " + name);
+
+  } catch {
+    alert("Error cargando lista");
+  }
+}
+
+// parse m3u
 function parseM3U(text) {
 
   let lines = text.split("\n");
-  let canales = [];
+  let out = [];
 
-  for (let i = 0; i < lines.length; i++) {
+  for (let i=0;i<lines.length;i++) {
 
     if (lines[i].startsWith("#EXTINF")) {
       let name = lines[i].split(",")[1];
       let url = lines[i+1];
 
-      canales.push({ name, url });
+      out.push({name,url});
     }
   }
 
-  return canales;
+  return out;
 }
 
-// 🔎 BUSCAR
-function buscarCanal() {
+// 🔍 buscar en TODOS los proveedores cargados
+function buscar() {
 
-  let lista = parseM3U(m3uInput.value);
-  let nombre = searchName.value.toLowerCase();
-
-  let encontrados = lista.filter(c => c.name.toLowerCase().includes(nombre));
-
+  let name = searchName.value.toLowerCase();
   resultados.innerHTML = "";
 
-  encontrados.forEach(c => {
+  for (let prov in cache) {
 
-    let div = document.createElement("div");
+    let lista = cache[prov];
 
-    div.innerHTML = `
-      ${c.name}
-      <button onclick="agregarDesdeBusqueda('${c.name}','${c.url}')">Agregar</button>
-    `;
+    lista.forEach(c => {
 
-    resultados.appendChild(div);
-  });
-}
+      if (c.name.toLowerCase().includes(name)) {
 
-// ➕ AGREGAR DESDE BUSQUEDA
-function agregarDesdeBusqueda(name, url) {
+        let div = document.createElement("div");
+        div.className = "result";
 
-  data.canales.push({
-    name,
-    category: "IPTV",
-    sources: [
-      { type: "hls", url: url }
-    ]
-  });
+        div.innerHTML = `
+          ${c.name} (${prov})
+          <button onclick="agregar('${c.name}','${c.url}')">Agregar</button>
+        `;
 
-  render();
-}
+        resultados.appendChild(div);
+      }
 
-// ➕ MANUAL
-function addBulk() {
-
-  let lines = bulk.value.split("\n");
-
-  lines.forEach(line => {
-
-    if (!line.trim()) return;
-
-    let [name, type, value, category, provider] = line.split("|");
-
-    let source = {};
-
-    if (type === "hls") source = { type: "hls", url: value };
-    if (type === "iptv") source = { type: "iptv", provider, stream_id: value };
-
-    data.canales.push({
-      name,
-      category,
-      sources: [source]
     });
-
-  });
-
-  bulk.value = "";
-  render();
-}
-
-// ❌ BORRAR
-function removeChannel(i) {
-  data.canales.splice(i, 1);
-  render();
-}
-
-// 🔄 REHACER JSON
-function resetJSON() {
-  if (confirm("Reiniciar todo?")) {
-    data = { providers:{}, canales:[] };
-    render();
   }
 }
 
-// 🔄 RENDER
+// agregar canal
+function agregar(name,url) {
+
+  data.canales.push({
+    name,
+    category:"IPTV",
+    sources:[{type:"hls", url}]
+  });
+
+  render();
+}
+
+// eliminar
+function removeChannel(i) {
+  data.canales.splice(i,1);
+  render();
+}
+
+// render
 function render() {
 
-  list.innerHTML = "";
+  list.innerHTML="";
 
-  data.canales.forEach((c,i) => {
+  data.canales.forEach((c,i)=>{
 
-    let div = document.createElement("div");
-    div.className = "channel";
+    let div=document.createElement("div");
+    div.className="result";
 
-    div.innerHTML = `
+    div.innerHTML=`
       ${c.name}
       <button onclick="removeChannel(${i})">❌</button>
     `;
@@ -298,16 +261,24 @@ function render() {
   });
 
   json.value = JSON.stringify(data,null,2);
-
   localStorage.setItem("iptv_data", JSON.stringify(data));
 }
 
-// 💾 DESCARGAR
-function download() {
-  let blob = new Blob([JSON.stringify(data)], {type:"application/json"});
-  let a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "config.json";
+// reset
+function resetJSON(){
+  if(confirm("Reiniciar?")){
+    data={providers:{},canales:[]};
+    cache={};
+    render();
+  }
+}
+
+// descargar
+function download(){
+  let blob=new Blob([JSON.stringify(data)],{type:"application/json"});
+  let a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="config.json";
   a.click();
 }
 
