@@ -1,0 +1,21 @@
+{
+  "providers": {
+    "p1": {
+      "base": "http://server.com",
+      "user": "user",
+      "pass": "pass"
+    }
+  },
+  "canales": [
+    {
+      "name": "DW Español",
+      "category": "Noticias",
+      "sources": [
+        {
+          "type": "hls",
+          "url": "https://dwstreamlive.akamaized.net/hls/live/2015537/dwstreamlive_es/master.m3u8"
+        }
+      ]
+    }
+  ]
+}
