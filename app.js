@@ -42,7 +42,7 @@ async function reproducir(canal) {
 
     document.getElementById("player-container").innerHTML = `
       <iframe width="100%" height="100%" 
-      src="https://www.youtube.com/embed/videoseries?list=${yt.playlistId}&autoplay=1"
+     src="https://www.youtube.com/embed/videoseries?list=${yt.playlistId}&autoplay=1&mute=1&loop=1&playlist=${yt.playlistId}"
       frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
     `;
 

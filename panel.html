@@ -56,7 +56,7 @@ button:hover {
 }
 
 textarea#json {
-  height: 350px;
+  height: 400px;
 }
 </style>
 
@@ -70,7 +70,7 @@ textarea#json {
 <div class="section">
 <h2>➕ Proveedores</h2>
 
-<input id="prov_name" placeholder="Nombre proveedor (ej: p1)">
+<input id="prov_name" placeholder="Nombre proveedor">
 <input id="prov_base" placeholder="Base URL">
 <input id="prov_user" placeholder="Usuario">
 <input id="prov_pass" placeholder="Password">
@@ -80,21 +80,18 @@ textarea#json {
 
 <!-- CANALES -->
 <div class="section">
-<h2>➕ Canales (puedes agregar varios)</h2>
+<h2>➕ Canales (múltiples)</h2>
 
 <textarea id="bulk" placeholder="
 Formato:
 
 nombre|tipo|valor|categoria|proveedor
 
-Ejemplos:
+Ejemplo:
 
-DW Español|hls|https://dwstreamlive.akamaized.net/hls/live/...|Noticias|
-France24|hls|https://static.france24.com/live/...|Noticias|
+DW Español|hls|https://...|Noticias|
 HBO|iptv|12345|Películas|p1
-YouTube Noticias|youtube|PLXXXXX|Noticias|
-
-👉 Para YouTube usa SOLO el ID de la playlist (PLXXXXX)
+Noticias YouTube|youtube|PLXXXXX|Noticias|
 "></textarea>
 
 <button onclick="addBulk()">Agregar canales</button>
@@ -103,7 +100,7 @@ YouTube Noticias|youtube|PLXXXXX|Noticias|
 
 <!-- LISTA -->
 <div class="section">
-<h2>📋 Lista de canales</h2>
+<h2>📋 Canales</h2>
 <div id="list"></div>
 </div>
 
@@ -114,33 +111,22 @@ YouTube Noticias|youtube|PLXXXXX|Noticias|
 <button onclick="download()">Descargar config.json</button>
 </div>
 
+<!-- TEST YOUTUBE -->
+<div class="section">
+<h2>▶️ Test YouTube</h2>
+<button onclick="testYouTube()">Probar último canal YouTube</button>
+<div id="yt"></div>
+</div>
+
 <script>
 
 let data = {
   providers: {},
-  canales: [
-
-    // 🔥 CANALES LIBRES INICIALES
-    {
-      name: "DW Español",
-      category: "Noticias",
-      sources: [
-        { type: "hls", url: "https://dwstreamlive.akamaized.net/hls/live/2015537/dwstreamlive_es/master.m3u8" }
-      ]
-    },
-    {
-      name: "France 24 Español",
-      category: "Noticias",
-      sources: [
-        { type: "hls", url: "https://static.france24.com/live/F24_ES_HI_HLS/live_web.m3u8" }
-      ]
-    }
-  ]
+  canales: []
 };
 
 // ➕ PROVEEDOR
 function addProvider() {
-
   let name = prov_name.value;
 
   data.providers[name] = {
@@ -152,7 +138,7 @@ function addProvider() {
   render();
 }
 
-// ➕ CANALES MASIVOS
+// ➕ CANALES
 function addBulk() {
 
   let lines = bulk.value.split("\n");
@@ -189,10 +175,10 @@ function addBulk() {
   render();
 }
 
-// ❌ ELIMINAR CANAL
-function removeChannel(index) {
-  if (confirm("¿Eliminar canal?")) {
-    data.canales.splice(index, 1);
+// ❌ ELIMINAR
+function removeChannel(i) {
+  if (confirm("Eliminar canal?")) {
+    data.canales.splice(i, 1);
     render();
   }
 }
@@ -226,6 +212,37 @@ function download() {
   a.href = URL.createObjectURL(blob);
   a.download = "config.json";
   a.click();
+}
+
+// ▶️ TEST YOUTUBE
+function testYouTube() {
+
+  let ytChannel = data.canales.find(c => c.sources[0].type === "youtube");
+
+  if (!ytChannel) {
+    alert("No hay canal YouTube");
+    return;
+  }
+
+  let playlist = ytChannel.sources[0].playlistId;
+
+  document.getElementById("yt").innerHTML = `
+    <iframe id="ytplayer"
+    width="100%" height="400"
+    src="https://www.youtube.com/embed/videoseries?list=${playlist}&autoplay=1&mute=1&loop=1&playlist=${playlist}&enablejsapi=1"
+    frameborder="0"
+    allow="autoplay"
+    allowfullscreen></iframe>
+  `;
+
+  // 🔥 intentar quitar mute
+  setTimeout(() => {
+    let iframe = document.getElementById("ytplayer");
+    iframe.contentWindow.postMessage(
+      '{"event":"command","func":"unMute","args":""}',
+      '*'
+    );
+  }, 3000);
 }
 
 // INIT

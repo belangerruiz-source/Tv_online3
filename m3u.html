@@ -4,7 +4,7 @@
 
 <script>
 
-async function generarM3U() {
+async function generar() {
 
   let res = await fetch("config.json");
   let data = await res.json();
@@ -15,20 +15,21 @@ async function generarM3U() {
 
   canales.forEach(c => {
 
-    let source = c.sources[0];
+    let best = c.sources[0]; // prioridad (fase 1)
+
     let url = "";
 
-    if (source.type === "hls") {
-      url = source.url;
+    if (best.type === "hls") {
+      url = best.url;
     }
 
-    if (source.type === "youtube") {
-      url = "https://www.youtube.com/embed/videoseries?list=" + source.playlistId;
+    if (best.type === "youtube") {
+      url = "https://www.youtube.com/embed/videoseries?list=" + best.playlistId;
     }
 
-    if (source.type === "iptv") {
-      let p = providers[source.provider];
-      url = `${p.base}/live/${p.user}/${p.pass}/${source.stream_id}.m3u8`;
+    if (best.type === "iptv") {
+      let p = providers[best.provider];
+      url = `${p.base}/live/${p.user}/${p.pass}/${best.stream_id}.m3u8`;
     }
 
     m3u += `#EXTINF:-1 group-title="${c.category}",${c.name}\n`;
@@ -39,7 +40,7 @@ async function generarM3U() {
   document.body.innerText = m3u;
 }
 
-generarM3U();
+generar();
 
 </script>
 
