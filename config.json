@@ -18,4 +18,21 @@
       ]
     }
   ]
+  {
+  "providers": {
+    "YouTube ": {
+      "base": "https://www.youtube.com/playlist?list=PLCKML06wO4bnsJRlpO_YycBsJaqE_RfqL",
+      "user": "",
+      "pass": ""
+    }
+  },
+  "canales": [
+    {
+      "name": "Canal Ciudades",
+      "sources": [
+        {}
+      ]
+    }
+  ]
+}
 }
