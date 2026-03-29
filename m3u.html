@@ -2,6 +2,8 @@
 <html>
 <body>
 
+<pre id="out"></pre>
+
 <script>
 
 async function generar() {
@@ -15,26 +17,35 @@ async function generar() {
 
   canales.forEach(c => {
 
-    let best = c.sources[0]; // prioridad (fase 1)
-
+    let s = c.sources[0];
     let url = "";
 
-    if (best.type === "hls") {
-      url = best.url;
+    if (s.type === "hls") url = s.url;
+
+    if (s.type === "iptv") {
+      let p = providers[s.provider];
+      url = `${p.base}/live/${p.user}/${p.pass}/${s.stream_id}.m3u8`;
     }
 
-    if (best.type === "youtube") {
-      url = "https://www.youtube.com/embed/videoseries?list=" + best.playlistId;
-    }
-
-    if (best.type === "iptv") {
-      let p = providers[best.provider];
-      url = `${p.base}/live/${p.user}/${p.pass}/${best.stream_id}.m3u8`;
+    if (s.type === "youtube") {
+      url = `https://www.youtube.com/watch?v=${s.playlistId}`;
     }
 
     m3u += `#EXTINF:-1 group-title="${c.category}",${c.name}\n`;
     m3u += url + "\n\n";
 
+  });
+
+  document.body.innerText = m3u;
+
+}
+
+generar();
+
+</script>
+
+</body>
+</html>
   });
 
   document.body.innerText = m3u;
