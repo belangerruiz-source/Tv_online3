@@ -28,10 +28,8 @@
     "url": "https://iptv-org.github.io/iptv/index.nsfw.m3u"
   },
   "Latinopro": {
-    "type": "xtream",
-    "base": "http://latinapro.net:25461",
-    "user": "lazaroperez",
-    "pass": "perez3"
+    "type": "m3u",
+    "url": "https://github.com/belangerruiz-source/Tv_online3/blob/main/playlist_lazaroperez.m3u"
   },
   "Rakuten": {
     "type": "m3u",
