@@ -10,18 +10,19 @@ body {
   background:#121212;
   color:#fff;
   font-family: Arial;
-  font-size:16px;
 }
 
 .container {
-  padding:15px;
+  max-width:480px;
+  margin:auto;
+  padding:10px;
 }
 
 .section {
   background:#1e1e1e;
-  padding:15px;
-  margin-bottom:15px;
-  border-radius:10px;
+  padding:10px;
+  margin-bottom:10px;
+  border-radius:8px;
 }
 
 input, textarea {
@@ -35,21 +36,21 @@ input, textarea {
 
 button {
   padding:6px 10px;
-  margin:5px;
+  margin:3px;
   background:#4da6ff;
   border:none;
   color:white;
 }
 
 .result {
-  border-bottom:1px solid #333;
   padding:6px;
+  border-bottom:1px solid #333;
   display:flex;
   justify-content:space-between;
 }
 
 .stat {
-  font-size:14px;
+  font-size:12px;
   color:#aaa;
 }
 </style>
@@ -59,30 +60,40 @@ button {
 
 <div class="container">
 
-<h2>📺 Panel IPTV PRO</h2>
+<h2> Panel IPTV</h2>
 
+<!-- BUSCAR -->
 <div class="section">
-<h3>🔎 Buscar canal</h3>
+<h3>Buscar canal</h3>
+
 <input id="searchName" placeholder="Nombre canal">
 <button onclick="buscar()">Buscar</button>
+
 <div id="resultados"></div>
 </div>
 
+<!-- PROVEEDORES -->
 <div class="section">
-<h3>📊 Proveedores</h3>
+<h3>Proveedores</h3>
+
+<button onclick="cargarTodas()">Cargar listas</button>
+
 <div id="stats"></div>
-<button onclick="cargarTodas()">Cargar todas las listas</button>
 </div>
 
+<!-- CANALES -->
 <div class="section">
-<h3>📋 Canales</h3>
+<h3>Canales</h3>
 <div id="list"></div>
 </div>
 
+<!-- JSON -->
 <div class="section">
-<h3>💾 JSON</h3>
+<h3>JSON</h3>
+
+<button onclick="copyJSON()">Copiar JSON</button>
+
 <textarea id="json"></textarea>
-<button onclick="download()">Descargar</button>
 </div>
 
 </div>
@@ -97,28 +108,7 @@ let data = { canales:[] };
 async function init() {
   let res = await fetch("providers.json");
   providers = await res.json();
-
   renderStats();
-}
-
-function renderStats() {
-
-  let div = document.getElementById("stats");
-  div.innerHTML = "";
-
-  for (let p in providers) {
-
-    let total = cache[p] ? cache[p].length : 0;
-    let usados = data.canales.filter(c =>
-      c.sources[0]?.provider === p
-    ).length;
-
-    div.innerHTML += `
-      <div class="stat">
-        ${p} → encontrados: ${total} | usados: ${usados}
-      </div>
-    `;
-  }
 }
 
 // cargar listas
@@ -133,24 +123,23 @@ async function cargarTodas() {
     try {
       let res = await fetch(prov.url);
       let text = await res.text();
-
       cache[p] = parseM3U(text);
-
     } catch {
-      console.log("Error en", p);
+      console.log("Error:", p);
     }
   }
 
   renderStats();
 }
 
-// parse m3u
+// parse
 function parseM3U(text) {
 
   let lines = text.split("\n");
   let out = [];
 
   for (let i=0;i<lines.length;i++) {
+
     if (lines[i].startsWith("#EXTINF")) {
       let name = lines[i].split(",")[1];
       let url = lines[i+1];
@@ -178,30 +167,35 @@ function buscar() {
 
         div.innerHTML = `
           ${c.name} (${p})
-          <button onclick="agregar('${c.name}','${c.url}','${p}')">Agregar</button>
+          <button onclick="agregar('${c.name}','${c.url}')">+</button>
         `;
 
         resultados.appendChild(div);
       }
-
     });
   }
 }
 
-// agregar
-function agregar(name,url,p) {
+//  AGREGAR CON FALLBACK
+function agregar(name,url) {
 
-  data.canales.push({
-    name,
-    category:"IPTV",
-    sources:[{type:"hls",url,provider:p}]
-  });
+  let existing = data.canales.find(c => c.name === name);
+
+  if (existing) {
+    existing.sources.push({type:"hls",url});
+  } else {
+    data.canales.push({
+      name,
+      category:"IPTV",
+      sources:[{type:"hls",url}]
+    });
+  }
 
   render();
 }
 
 // eliminar
-function remove(i){
+function remove(i) {
   data.canales.splice(i,1);
   render();
 }
@@ -212,26 +206,44 @@ function render() {
   list.innerHTML="";
 
   data.canales.forEach((c,i)=>{
+
     list.innerHTML += `
       <div class="result">
-        ${c.name}
-        <button onclick="remove(${i})">❌</button>
+        ${c.name} (${c.sources.length} fuentes)
+        <button onclick="remove(${i})"></button>
       </div>
     `;
   });
 
   json.value = JSON.stringify(data,null,2);
-
   renderStats();
 }
 
-// descargar
-function download(){
-  let blob=new Blob([JSON.stringify(data)],{type:"application/json"});
-  let a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="config.json";
-  a.click();
+// stats
+function renderStats() {
+
+  stats.innerHTML="";
+
+  for (let p in providers) {
+
+    let total = cache[p]?.length || 0;
+
+    let usados = data.canales.filter(c =>
+      c.sources.some(s => cache[p]?.some(x=>x.url===s.url))
+    ).length;
+
+    stats.innerHTML += `
+      <div class="stat">
+        ${p}: encontrados ${total} | usados ${usados}
+      </div>
+    `;
+  }
+}
+
+// copiar json
+function copyJSON() {
+  navigator.clipboard.writeText(json.value);
+  alert("JSON copiado");
 }
 
 init();
