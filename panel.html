@@ -10,12 +10,13 @@ body {
   background:#121212;
   color:#fff;
   font-family: Arial;
+  font-size:18px;
 }
 
 .container {
-  max-width:480px;
-  margin:auto;
+  width:100%;
   padding:10px;
+  box-sizing:border-box;
 }
 
 .section {
@@ -27,33 +28,37 @@ body {
 
 input, textarea {
   width:100%;
-  padding:8px;
+  padding:10px;
   margin:5px 0;
   background:#000;
   color:#fff;
   border:1px solid #333;
+  font-size:16px;
 }
 
 button {
-  padding:6px 10px;
-  margin:3px;
+  padding:8px 12px;
+  margin:5px 0;
   background:#4da6ff;
   border:none;
   color:white;
+  font-size:16px;
+  border-radius:6px;
 }
 
 .result {
-  padding:6px;
+  padding:8px;
   border-bottom:1px solid #333;
   display:flex;
   justify-content:space-between;
 }
 
 .stat {
-  font-size:12px;
+  font-size:14px;
   color:#aaa;
 }
 </style>
+
 </head>
 
 <body>
@@ -62,9 +67,8 @@ button {
 
 <h2> Panel IPTV</h2>
 
-<!-- BUSCAR -->
 <div class="section">
-<h3>Buscar canal</h3>
+<h3> Buscar canal</h3>
 
 <input id="searchName" placeholder="Nombre canal">
 <button onclick="buscar()">Buscar</button>
@@ -72,24 +76,22 @@ button {
 <div id="resultados"></div>
 </div>
 
-<!-- PROVEEDORES -->
 <div class="section">
-<h3>Proveedores</h3>
+<h3> Proveedores</h3>
 
-<button onclick="cargarTodas()">Cargar listas</button>
+<button id="loadBtn" onclick="cargarTodas()">Cargar listas</button>
 
+<div id="loading"></div>
 <div id="stats"></div>
 </div>
 
-<!-- CANALES -->
 <div class="section">
-<h3>Canales</h3>
+<h3> Canales</h3>
 <div id="list"></div>
 </div>
 
-<!-- JSON -->
 <div class="section">
-<h3>JSON</h3>
+<h3> JSON</h3>
 
 <button onclick="copyJSON()">Copiar JSON</button>
 
@@ -104,35 +106,64 @@ let providers = {};
 let cache = {};
 let data = { canales:[] };
 
-// cargar providers
+//  cargar providers.json
 async function init() {
   let res = await fetch("providers.json");
   providers = await res.json();
   renderStats();
 }
 
-// cargar listas
+//  CARGAR LISTAS
 async function cargarTodas() {
+
+  loadBtn.innerText = "Cargando...";
+  loading.innerText = "Cargando proveedores...";
 
   for (let p in providers) {
 
     let prov = providers[p];
 
-    if (prov.type !== "m3u") continue;
-
     try {
-      let res = await fetch(prov.url);
-      let text = await res.text();
-      cache[p] = parseM3U(text);
+
+      //  M3U
+      if (prov.type === "m3u") {
+
+        let res = await fetch(prov.url);
+        let text = await res.text();
+
+        cache[p] = parseM3U(text);
+
+      }
+
+      //  XTREAM
+      if (prov.type === "xtream") {
+
+        let url = `${prov.base}/player_api.php?username=${prov.user}&password=${prov.pass}`;
+
+        let res = await fetch(url);
+        let json = await res.json();
+
+        let channels = json.live_streams || [];
+
+        cache[p] = channels.map(c => ({
+          name: c.name,
+          url: `${prov.base}/live/${prov.user}/${prov.pass}/${c.stream_id}.m3u8`
+        }));
+
+      }
+
     } catch {
-      console.log("Error:", p);
+      console.log("Error en", p);
     }
   }
+
+  loadBtn.innerText = "Cargar listas";
+  loading.innerText = " Listas cargadas";
 
   renderStats();
 }
 
-// parse
+// parse m3u
 function parseM3U(text) {
 
   let lines = text.split("\n");
@@ -143,6 +174,7 @@ function parseM3U(text) {
     if (lines[i].startsWith("#EXTINF")) {
       let name = lines[i].split(",")[1];
       let url = lines[i+1];
+
       out.push({name,url});
     }
   }
@@ -150,7 +182,7 @@ function parseM3U(text) {
   return out;
 }
 
-// buscar
+//  BUSCAR
 function buscar() {
 
   let name = searchName.value.toLowerCase();
@@ -176,7 +208,7 @@ function buscar() {
   }
 }
 
-//  AGREGAR CON FALLBACK
+//  AGREGAR (fallback)
 function agregar(name,url) {
 
   let existing = data.canales.find(c => c.name === name);
@@ -194,54 +226,58 @@ function agregar(name,url) {
   render();
 }
 
-// eliminar
-function remove(i) {
+//  eliminar
+function remove(i){
   data.canales.splice(i,1);
   render();
 }
 
 // render
-function render() {
+function render(){
 
   list.innerHTML="";
 
   data.canales.forEach((c,i)=>{
-
-    list.innerHTML += `
+    list.innerHTML+=`
       <div class="result">
-        ${c.name} (${c.sources.length} fuentes)
+        ${c.name} (${c.sources.length})
         <button onclick="remove(${i})"></button>
       </div>
     `;
   });
 
   json.value = JSON.stringify(data,null,2);
+
+  localStorage.setItem("iptv_data", JSON.stringify(data));
+
   renderStats();
 }
 
 // stats
-function renderStats() {
+function renderStats(){
 
   stats.innerHTML="";
 
-  for (let p in providers) {
+  for (let p in providers){
 
     let total = cache[p]?.length || 0;
 
     let usados = data.canales.filter(c =>
-      c.sources.some(s => cache[p]?.some(x=>x.url===s.url))
+      c.sources.some(s =>
+        cache[p]?.some(x => x.url === s.url)
+      )
     ).length;
 
     stats.innerHTML += `
       <div class="stat">
-        ${p}: encontrados ${total} | usados ${usados}
+        ${p}: ${total} encontrados | ${usados} usados
       </div>
     `;
   }
 }
 
-// copiar json
-function copyJSON() {
+// copiar JSON
+function copyJSON(){
   navigator.clipboard.writeText(json.value);
   alert("JSON copiado");
 }
