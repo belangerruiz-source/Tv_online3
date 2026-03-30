@@ -1,0 +1,64 @@
+{
+  "FreeTV": {
+    "type": "m3u",
+    "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8"
+  },
+  "SamsungTV": {
+    "type": "m3u",
+    "url": "https://kutt.it/SamsungTV"
+  },
+  "SamsungPlus": {
+    "type": "m3u",
+    "url": "https://tinyurl.com/multiservice21?region=all&service=Samsungtvplus"
+  },
+  "PlutoTV": {
+    "type": "m3u",
+    "url": "https://tinyurl.com/multiservice21?region=all&service=plutotv"
+  },
+  "Plex": {
+    "type": "m3u",
+    "url": "https://tinyurl.com/multiservice21?region=all&service=PLEX"
+  },
+  "Roku": {
+    "type": "m3u",
+    "url": "https://tinyurl.com/multiservice21?region=all&service=roku"
+  },
+  "GithubIPTV": {
+    "type": "m3u",
+    "url": "https://iptv-org.github.io/iptv/index.nsfw.m3u"
+  },
+  "Latinopro": {
+    "type": "xtream",
+    "base": "http://latinapro.net:25461",
+    "user": "lazaroperez",
+    "pass": "perez3"
+  },
+  "Rakuten": {
+    "type": "m3u",
+    "url": "https://www.apsattv.com/rakuten-uk.m3u"
+  },
+  "LG": {
+    "type": "m3u",
+    "url": "https://www.apsattv.com/lg.m3u"
+  },
+  "Xiaomi": {
+    "type": "m3u",
+    "url": "https://www.apsattv.com/xiaomi.m3u"
+  },
+  "Xumo": {
+    "type": "m3u",
+    "url": "https://www.apsattv.com/xumo.m3u"
+  },
+  "Finu": {
+    "type": "m3u",
+    "url": "http://finu.site:8080/get.php?username=98:06:3c:97:f1:e4CBBogdan&password=49hMgFdqZRwerYCeeMXAJYDR0eDMsP&type=m3u"
+  },
+  "Vizio": {
+    "type": "m3u",
+    "url": "https://www.apsattv.com/vizio.m3u"
+  },
+  "Nocords": {
+    "type": "m3u",
+    "url": "https://nocords.xyz/pluto/playlist.m3u"
+  }
+}

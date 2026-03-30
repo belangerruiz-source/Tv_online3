@@ -8,18 +8,13 @@
 body {
   margin:0;
   background:#121212;
-  color:#eaeaea;
+  color:#fff;
   font-family: Arial;
   font-size:16px;
 }
 
 .container {
   padding:15px;
-  max-width:100%;
-}
-
-h1,h2 {
-  color:#4da6ff;
 }
 
 .section {
@@ -29,14 +24,13 @@ h1,h2 {
   border-radius:10px;
 }
 
-input, textarea, select {
+input, textarea {
   width:100%;
   padding:8px;
   margin:5px 0;
   background:#000;
-  color:white;
+  color:#fff;
   border:1px solid #333;
-  border-radius:6px;
 }
 
 button {
@@ -44,75 +38,50 @@ button {
   margin:5px;
   background:#4da6ff;
   border:none;
-  border-radius:6px;
   color:white;
-  width:auto;
 }
 
 .result {
-  padding:8px;
   border-bottom:1px solid #333;
+  padding:6px;
   display:flex;
   justify-content:space-between;
 }
-</style>
 
+.stat {
+  font-size:14px;
+  color:#aaa;
+}
+</style>
 </head>
 
 <body>
 
 <div class="container">
 
-<h1>📺 Panel IPTV</h1>
+<h2>📺 Panel IPTV PRO</h2>
 
-<!-- PROVEEDORES -->
 <div class="section">
-<h2>Proveedores</h2>
-
-<select id="prov_type">
-<option value="m3u">M3U</option>
-<option value="xtream">Xtream</option>
-</select>
-
-<input id="prov_name" placeholder="Nombre">
-
-<input id="prov_url" placeholder="URL M3U">
-
-<div id="xtream_block" style="display:none;">
-<input id="prov_base" placeholder="Base">
-<input id="prov_user" placeholder="User">
-<input id="prov_pass" placeholder="Pass">
-</div>
-
-<button onclick="addProvider()">Agregar</button>
-<button onclick="cargarLista()">Cargar lista</button>
-
-</div>
-
-<!-- BUSCADOR -->
-<div class="section">
-<h2>Buscar canal</h2>
-
+<h3>🔎 Buscar canal</h3>
 <input id="searchName" placeholder="Nombre canal">
-
 <button onclick="buscar()">Buscar</button>
-
 <div id="resultados"></div>
 </div>
 
-<!-- LISTA -->
 <div class="section">
-<h2>Canales</h2>
+<h3>📊 Proveedores</h3>
+<div id="stats"></div>
+<button onclick="cargarTodas()">Cargar todas las listas</button>
+</div>
+
+<div class="section">
+<h3>📋 Canales</h3>
 <div id="list"></div>
 </div>
 
-<!-- JSON -->
 <div class="section">
-<h2>JSON</h2>
-
-<button onclick="resetJSON()">Reiniciar</button>
+<h3>💾 JSON</h3>
 <textarea id="json"></textarea>
-
 <button onclick="download()">Descargar</button>
 </div>
 
@@ -120,60 +89,59 @@ button {
 
 <script>
 
-let data = { providers:{}, canales:[] };
-let cache = {}; // 🔥 listas cargadas
+let providers = {};
+let cache = {};
+let data = { canales:[] };
 
-// cargar guardado
-let saved = localStorage.getItem("iptv_data");
-if (saved) data = JSON.parse(saved);
+// cargar providers
+async function init() {
+  let res = await fetch("providers.json");
+  providers = await res.json();
 
-// UI xtream
-prov_type.onchange = () => {
-  xtream_block.style.display = prov_type.value === "xtream" ? "block" : "none";
-};
-
-// agregar proveedor
-function addProvider() {
-
-  let name = prov_name.value;
-
-  if (prov_type.value === "m3u") {
-    data.providers[name] = { type:"m3u", url:prov_url.value };
-  }
-
-  if (prov_type.value === "xtream") {
-    data.providers[name] = {
-      type:"xtream",
-      base:prov_base.value,
-      user:prov_user.value,
-      pass:prov_pass.value
-    };
-  }
-
-  render();
+  renderStats();
 }
 
-// 🔥 cargar lista UNA VEZ
-async function cargarLista() {
+function renderStats() {
 
-  let name = prov_name.value;
-  let p = data.providers[name];
+  let div = document.getElementById("stats");
+  div.innerHTML = "";
 
-  if (!p) return alert("Proveedor no existe");
+  for (let p in providers) {
 
-  if (p.type !== "m3u") return alert("Solo M3U aquí");
+    let total = cache[p] ? cache[p].length : 0;
+    let usados = data.canales.filter(c =>
+      c.sources[0]?.provider === p
+    ).length;
 
-  try {
-    let res = await fetch(p.url);
-    let text = await res.text();
-
-    cache[name] = parseM3U(text);
-
-    alert("Lista cargada: " + name);
-
-  } catch {
-    alert("Error cargando lista");
+    div.innerHTML += `
+      <div class="stat">
+        ${p} → encontrados: ${total} | usados: ${usados}
+      </div>
+    `;
   }
+}
+
+// cargar listas
+async function cargarTodas() {
+
+  for (let p in providers) {
+
+    let prov = providers[p];
+
+    if (prov.type !== "m3u") continue;
+
+    try {
+      let res = await fetch(prov.url);
+      let text = await res.text();
+
+      cache[p] = parseM3U(text);
+
+    } catch {
+      console.log("Error en", p);
+    }
+  }
+
+  renderStats();
 }
 
 // parse m3u
@@ -183,11 +151,9 @@ function parseM3U(text) {
   let out = [];
 
   for (let i=0;i<lines.length;i++) {
-
     if (lines[i].startsWith("#EXTINF")) {
       let name = lines[i].split(",")[1];
       let url = lines[i+1];
-
       out.push({name,url});
     }
   }
@@ -195,26 +161,24 @@ function parseM3U(text) {
   return out;
 }
 
-// 🔍 buscar en TODOS los proveedores cargados
+// buscar
 function buscar() {
 
   let name = searchName.value.toLowerCase();
   resultados.innerHTML = "";
 
-  for (let prov in cache) {
+  for (let p in cache) {
 
-    let lista = cache[prov];
-
-    lista.forEach(c => {
+    cache[p].forEach(c => {
 
       if (c.name.toLowerCase().includes(name)) {
 
         let div = document.createElement("div");
-        div.className = "result";
+        div.className="result";
 
         div.innerHTML = `
-          ${c.name} (${prov})
-          <button onclick="agregar('${c.name}','${c.url}')">Agregar</button>
+          ${c.name} (${p})
+          <button onclick="agregar('${c.name}','${c.url}','${p}')">Agregar</button>
         `;
 
         resultados.appendChild(div);
@@ -224,20 +188,20 @@ function buscar() {
   }
 }
 
-// agregar canal
-function agregar(name,url) {
+// agregar
+function agregar(name,url,p) {
 
   data.canales.push({
     name,
     category:"IPTV",
-    sources:[{type:"hls", url}]
+    sources:[{type:"hls",url,provider:p}]
   });
 
   render();
 }
 
 // eliminar
-function removeChannel(i) {
+function remove(i){
   data.canales.splice(i,1);
   render();
 }
@@ -248,29 +212,17 @@ function render() {
   list.innerHTML="";
 
   data.canales.forEach((c,i)=>{
-
-    let div=document.createElement("div");
-    div.className="result";
-
-    div.innerHTML=`
-      ${c.name}
-      <button onclick="removeChannel(${i})">❌</button>
+    list.innerHTML += `
+      <div class="result">
+        ${c.name}
+        <button onclick="remove(${i})">❌</button>
+      </div>
     `;
-
-    list.appendChild(div);
   });
 
   json.value = JSON.stringify(data,null,2);
-  localStorage.setItem("iptv_data", JSON.stringify(data));
-}
 
-// reset
-function resetJSON(){
-  if(confirm("Reiniciar?")){
-    data={providers:{},canales:[]};
-    cache={};
-    render();
-  }
+  renderStats();
 }
 
 // descargar
@@ -282,7 +234,7 @@ function download(){
   a.click();
 }
 
-render();
+init();
 
 </script>
 
