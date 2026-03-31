@@ -25,7 +25,7 @@
   },
   "GithubIPTV": {
     "type": "m3u",
-    "url": "https://iptv-org.github.io/iptv/index.nsfw.m3u"
+    "url": "https://iptv-org.github.io/iptv/index.m3u"
   },
   "Latinopro": {
     "type": "m3u",
