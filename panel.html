@@ -9,12 +9,12 @@ body {
   margin:0;
   background:#121212;
   color:#fff;
-  font-family: Arial;
-  font-size:18px;
+  font-family: Arial, sans-serif;
+  overflow-x:hidden;
 }
 
 .container {
-  width:100%;
+  max-width:100%;
   padding:10px;
   box-sizing:border-box;
 }
@@ -26,6 +26,11 @@ body {
   border-radius:8px;
 }
 
+h2, h3 {
+  color:#4da6ff;
+  margin:5px 0;
+}
+
 input, textarea {
   width:100%;
   padding:10px;
@@ -33,29 +38,40 @@ input, textarea {
   background:#000;
   color:#fff;
   border:1px solid #333;
+  border-radius:5px;
   font-size:16px;
+  box-sizing:border-box;
 }
 
 button {
-  padding:8px 12px;
+  padding:8px 10px;
   margin:5px 0;
   background:#4da6ff;
   border:none;
-  color:white;
-  font-size:16px;
   border-radius:6px;
+  color:white;
+  font-size:15px;
 }
 
 .result {
   padding:8px;
   border-bottom:1px solid #333;
   display:flex;
-  justify-content:space-between;
+  flex-direction:column;
+}
+
+.result button {
+  margin-top:5px;
+  width:auto;
 }
 
 .stat {
-  font-size:14px;
+  font-size:13px;
   color:#aaa;
+}
+
+textarea#json {
+  height:300px;
 }
 </style>
 
@@ -80,6 +96,7 @@ button {
 <h3> Proveedores</h3>
 
 <button id="loadBtn" onclick="cargarTodas()">Cargar listas</button>
+<button onclick="actualizarListas()">Actualizar listas</button>
 
 <div id="loading"></div>
 <div id="stats"></div>
@@ -103,53 +120,35 @@ button {
 <script>
 
 let providers = {};
-let cache = {};
-let data = { canales:[] };
+let cache = JSON.parse(localStorage.getItem("iptv_cache") || "{}");
+let data = JSON.parse(localStorage.getItem("iptv_data") || '{"canales":[]}');
 
-//  cargar providers.json
+// cargar providers.json
 async function init() {
   let res = await fetch("providers.json");
   providers = await res.json();
+  render();
   renderStats();
 }
 
-//  CARGAR LISTAS
+// cargar listas (con cache)
 async function cargarTodas() {
 
   loadBtn.innerText = "Cargando...";
-  loading.innerText = "Cargando proveedores...";
+  loading.innerText = "Cargando listas...";
 
   for (let p in providers) {
+
+    if (cache[p]) continue;
 
     let prov = providers[p];
 
     try {
 
-      //  M3U
       if (prov.type === "m3u") {
-
         let res = await fetch(prov.url);
         let text = await res.text();
-
         cache[p] = parseM3U(text);
-
-      }
-
-      //  XTREAM
-      if (prov.type === "xtream") {
-
-        let url = `${prov.base}/player_api.php?username=${prov.user}&password=${prov.pass}`;
-
-        let res = await fetch(url);
-        let json = await res.json();
-
-        let channels = json.live_streams || [];
-
-        cache[p] = channels.map(c => ({
-          name: c.name,
-          url: `${prov.base}/live/${prov.user}/${prov.pass}/${c.stream_id}.m3u8`
-        }));
-
       }
 
     } catch {
@@ -157,13 +156,22 @@ async function cargarTodas() {
     }
   }
 
+  localStorage.setItem("iptv_cache", JSON.stringify(cache));
+
   loadBtn.innerText = "Cargar listas";
   loading.innerText = " Listas cargadas";
 
   renderStats();
 }
 
-// parse m3u
+// actualizar listas manualmente
+async function actualizarListas() {
+  cache = {};
+  localStorage.removeItem("iptv_cache");
+  await cargarTodas();
+}
+
+// parse M3U
 function parseM3U(text) {
 
   let lines = text.split("\n");
@@ -182,7 +190,7 @@ function parseM3U(text) {
   return out;
 }
 
-//  BUSCAR
+// buscar
 function buscar() {
 
   let name = searchName.value.toLowerCase();
@@ -195,11 +203,11 @@ function buscar() {
       if (c.name.toLowerCase().includes(name)) {
 
         let div = document.createElement("div");
-        div.className="result";
+        div.className = "result";
 
         div.innerHTML = `
-          ${c.name} (${p})
-          <button onclick="agregar('${c.name}','${c.url}')">+</button>
+          <div>${c.name} (${p})</div>
+          <button onclick="agregar('${c.name}','${c.url}')">Agregar</button>
         `;
 
         resultados.appendChild(div);
@@ -208,14 +216,19 @@ function buscar() {
   }
 }
 
-//  AGREGAR (fallback)
+// agregar con fallback
 function agregar(name,url) {
 
   let existing = data.canales.find(c => c.name === name);
 
   if (existing) {
-    existing.sources.push({type:"hls",url});
+
+    if (!existing.sources.some(s => s.url === url)) {
+      existing.sources.push({type:"hls",url});
+    }
+
   } else {
+
     data.canales.push({
       name,
       category:"IPTV",
@@ -223,12 +236,18 @@ function agregar(name,url) {
     });
   }
 
-  render();
+  guardar();
 }
 
-//  eliminar
+// eliminar
 function remove(i){
   data.canales.splice(i,1);
+  guardar();
+}
+
+// guardar
+function guardar(){
+  localStorage.setItem("iptv_data", JSON.stringify(data));
   render();
 }
 
@@ -238,17 +257,16 @@ function render(){
   list.innerHTML="";
 
   data.canales.forEach((c,i)=>{
-    list.innerHTML+=`
+
+    list.innerHTML += `
       <div class="result">
-        ${c.name} (${c.sources.length})
-        <button onclick="remove(${i})"></button>
+        <div>${c.name} (${c.sources.length} fuentes)</div>
+        <button onclick="remove(${i})">Eliminar</button>
       </div>
     `;
   });
 
   json.value = JSON.stringify(data,null,2);
-
-  localStorage.setItem("iptv_data", JSON.stringify(data));
 
   renderStats();
 }
