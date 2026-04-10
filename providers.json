@@ -3,9 +3,9 @@
     "type": "m3u",
     "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8"
   },
-  "SamsungTV": {
+  "Dino": {
     "type": "m3u",
-    "url": "https://kutt.it/SamsungTV"
+    "url": "http://tvappapk@line.dino.ws:80/get.php?username=a550d8efdd&password=6ccc000157a3&type=m3u_plus&output=m3u8"
   },
   "SamsungPlus": {
     "type": "m3u",
@@ -25,11 +25,11 @@
   },
   "GithubIPTV": {
     "type": "m3u",
-    "url": "https://iptv-org.github.io/iptv/index.m3u"
+    "url": "https://iptv-org.github.io/iptv/index.nsfw.m3u"
   },
   "Latinopro": {
     "type": "m3u",
-    "url": "https://github.com/belangerruiz-source/Tv_online3/playlist_lazaroperez.m3u"
+    "url": "https://github.com/belangerruiz-source/Tv_online3/blob/main/playlist_lazaroperez.m3u"
   },
   "Rakuten": {
     "type": "m3u",
