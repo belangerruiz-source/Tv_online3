@@ -1,17 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>IPTV Panel</title>
+  <title>IPTV Panel PRO</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h1>📺 IPTV Panel</h1>
+<h1>📺 IPTV Panel PRO</h1>
 
 <input type="file" id="fileInput">
 
-<button onclick="generarM3U()">Generar M3U</button>
-<button onclick="descargarJSON()">Descargar JSON</button>
+<button onclick="agregarCanal()">➕ Agregar Canal</button>
+<button onclick="generarM3U(3)">🎬 M3U TOP 3</button>
+<button onclick="generarM3U(999)">📦 M3U COMPLETO</button>
+<button onclick="descargarJSON()">💾 Descargar JSON</button>
 
 <div id="canales"></div>
 

@@ -1,15 +1,12 @@
 let data = {}
 
-document.getElementById("fileInput").addEventListener("change", function(e) {
-  const file = e.target.files[0]
+document.getElementById("fileInput").addEventListener("change", e => {
   const reader = new FileReader()
-
-  reader.onload = function(event) {
-    data = JSON.parse(event.target.result)
+  reader.onload = ev => {
+    data = JSON.parse(ev.target.result)
     render()
   }
-
-  reader.readAsText(file)
+  reader.readAsText(e.target.files[0])
 })
 
 function render() {
@@ -21,7 +18,12 @@ function render() {
     let div = document.createElement("div")
     div.className = "canal"
 
-    div.innerHTML = `<h3>${canal}</h3>`
+    div.innerHTML = `
+      <h3>${canal}</h3>
+      <button onclick="renombrarCanal('${canal}')">✏️</button>
+      <button onclick="eliminarCanal('${canal}')">🗑</button>
+      <button onclick="renumerar('${canal}')">🔢</button>
+    `
 
     data[canal].fuentes.forEach((f, i) => {
 
@@ -29,8 +31,11 @@ function render() {
       fuente.className = "fuente"
 
       fuente.innerHTML = `
-        ${f.nombre} 
-        <button onclick="eliminarFuente('${canal}', ${i})">❌</button>
+        ${f.nombre}
+        <button onclick="subir('${canal}',${i})">⬆</button>
+        <button onclick="bajar('${canal}',${i})">⬇</button>
+        <button onclick="mover('${canal}',${i})">📦</button>
+        <button onclick="eliminarFuente('${canal}',${i})">❌</button>
       `
 
       div.appendChild(fuente)
@@ -40,36 +45,91 @@ function render() {
   }
 }
 
-function eliminarFuente(canal, idx) {
-  data[canal].fuentes.splice(idx, 1)
+function agregarCanal() {
+  let nombre = prompt("Nombre del canal:")
+  if (!nombre) return
+
+  data[nombre] = { fuentes: [] }
   render()
 }
 
-function generarM3U() {
+function renombrarCanal(canal) {
+  let nuevo = prompt("Nuevo nombre:", canal)
+  if (!nuevo) return
+
+  data[nuevo] = data[canal]
+  delete data[canal]
+
+  render()
+}
+
+function eliminarCanal(canal) {
+  delete data[canal]
+  render()
+}
+
+function eliminarFuente(canal, i) {
+  data[canal].fuentes.splice(i,1)
+  render()
+}
+
+function subir(canal,i){
+  if(i<=0) return
+  let f=data[canal].fuentes
+  ;[f[i],f[i-1]]=[f[i-1],f[i]]
+  render()
+}
+
+function bajar(canal,i){
+  let f=data[canal].fuentes
+  if(i>=f.length-1) return
+  ;[f[i],f[i+1]]=[f[i+1],f[i]]
+  render()
+}
+
+function mover(canal,i){
+  let destino = prompt("Mover a canal:")
+  if(!data[destino]) return alert("No existe")
+
+  let f = data[canal].fuentes.splice(i,1)[0]
+  data[destino].fuentes.push(f)
+
+  render()
+}
+
+function renumerar(canal){
+
+  data[canal].fuentes.forEach((f,i)=>{
+    f.nombre = canal.toUpperCase() + "_" + (i+1)
+  })
+
+  render()
+}
+
+function generarM3U(limit){
 
   let m3u = "#EXTM3U\n\n"
 
-  for (let canal in data) {
+  for(let canal in data){
 
-    let fuentes = data[canal].fuentes.slice(0, 3)
+    let fuentes = data[canal].fuentes.slice(0,limit)
 
-    fuentes.forEach(f => {
+    fuentes.forEach(f=>{
       let url = `${f.host}/live/${f.user}/${f.pass}/${f.stream_id}.ts`
-
       m3u += `#EXTINF:-1,${f.nombre}\n${url}\n\n`
     })
   }
 
-  descargarArchivo("final.m3u", m3u)
+  descargar("final.m3u", m3u)
 }
 
-function descargarJSON() {
-  descargarArchivo("xtream_data.json", JSON.stringify(data, null, 2))
+function descargarJSON(){
+  descargar("xtream_data.json", JSON.stringify(data,null,2))
 }
 
-function descargarArchivo(nombre, contenido) {
-  const blob = new Blob([contenido], { type: "text/plain" })
-  const a = document.createElement("a")
+function descargar(nombre, contenido){
+  let blob = new Blob([contenido])
+  let a = document.createElement("a")
   a.href = URL.createObjectURL(blob)
   a.download = nombre
   a.click()

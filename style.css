@@ -1,7 +1,7 @@
 body {
-  font-family: Arial;
   background: #111;
   color: #fff;
+  font-family: Arial;
 }
 
 .canal {
@@ -12,4 +12,7 @@ body {
 
 .fuente {
   margin-left: 20px;
+}
+button {
+  margin: 2px;
 }
