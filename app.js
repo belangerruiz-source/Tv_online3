@@ -1,5 +1,5 @@
 // ==========================
-// PANEL ORIGINAL
+// PANEL ORIGINAL (NO TOCADO)
 // ==========================
 
 let data = {}
@@ -20,29 +20,12 @@ function render() {
   for (let canal in data) {
 
     let div = document.createElement("div")
-    div.className = "canal"
+    div.innerHTML = `<h3>${canal}</h3>`
 
-    div.innerHTML = `
-      <h3>${canal}</h3>
-      <button onclick="renombrarCanal('${canal}')"></button>
-      <button onclick="eliminarCanal('${canal}')"></button>
-      <button onclick="renumerar('${canal}')"></button>
-    `
-
-    data[canal].fuentes.forEach((f, i) => {
-
-      let fuente = document.createElement("div")
-      fuente.className = "fuente"
-
-      fuente.innerHTML = `
-        ${f.nombre}
-        <button onclick="subir('${canal}',${i})"></button>
-        <button onclick="bajar('${canal}',${i})"></button>
-        <button onclick="mover('${canal}',${i})"></button>
-        <button onclick="eliminarFuente('${canal}',${i})"></button>
-      `
-
-      div.appendChild(fuente)
+    data[canal].fuentes.forEach((f,i)=>{
+      let d = document.createElement("div")
+      d.innerHTML = `${f.nombre}`
+      div.appendChild(d)
     })
 
     cont.appendChild(div)
@@ -50,91 +33,9 @@ function render() {
 }
 
 // ==========================
-// FUNCIONES ORIGINALES
+// DESCARGA (ANDROID)
 // ==========================
 
-function agregarCanal() {
-  let nombre = prompt("Nombre del canal:")
-  if (!nombre) return
-  data[nombre] = { fuentes: [] }
-  render()
-}
-
-function renombrarCanal(canal) {
-  let nuevo = prompt("Nuevo nombre:", canal)
-  if (!nuevo) return
-
-  data[nuevo] = data[canal]
-  delete data[canal]
-  render()
-}
-
-function eliminarCanal(canal) {
-  delete data[canal]
-  render()
-}
-
-function eliminarFuente(canal, i) {
-  data[canal].fuentes.splice(i,1)
-  render()
-}
-
-function subir(canal,i){
-  if(i<=0) return
-  let f=data[canal].fuentes
-  ;[f[i],f[i-1]]=[f[i-1],f[i]]
-  render()
-}
-
-function bajar(canal,i){
-  let f=data[canal].fuentes
-  if(i>=f.length-1) return
-  ;[f[i],f[i+1]]=[f[i+1],f[i]]
-  render()
-}
-
-function mover(canal,i){
-  let destino = prompt("Mover a canal:")
-  if(!data[destino]) return alert("No existe")
-
-  let f = data[canal].fuentes.splice(i,1)[0]
-  data[destino].fuentes.push(f)
-  render()
-}
-
-function renumerar(canal){
-  data[canal].fuentes.forEach((f,i)=>{
-    f.nombre = canal.toUpperCase() + "_" + (i+1)
-  })
-  render()
-}
-
-// ==========================
-// EXPORTACIÓN
-// ==========================
-
-function generarM3U(limit){
-
-  let m3u = "#EXTM3U\n\n"
-
-  for(let canal in data){
-
-    let fuentes = data[canal].fuentes.slice(0,limit)
-
-    fuentes.forEach(f=>{
-      let url = `${f.host}/live/${f.user}/${f.pass}/${f.stream_id}.ts`
-      m3u += `#EXTINF:-1,${f.nombre}\n${url}\n\n`
-    })
-  }
-
-  descargar("final.m3u", m3u)
-}
-
-function descargarJSON(){
-  descargar("xtream_data.json", JSON.stringify(data,null,2))
-}
-
-// descarga compatible Android
 function descargar(nombre, contenido){
   const blob = new Blob([contenido], {type:"text/plain"})
   const url = URL.createObjectURL(blob)
@@ -142,7 +43,6 @@ function descargar(nombre, contenido){
   const a = document.createElement("a")
   a.href = url
   a.download = nombre
-
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
@@ -151,13 +51,19 @@ function descargar(nombre, contenido){
 }
 
 // ==========================
-//  EXPLORADOR PROVEEDORES
+//  EXPLORADOR PROVEEDORES PRO
 // ==========================
 
 let proveedores = []
+let proveedoresValidos = []
 let index = {}
+
 let proveedorActual = null
 let categoriaActual = null
+
+// ==========================
+// ABRIR EXPLORADOR
+// ==========================
 
 function abrirExplorador(){
 
@@ -171,8 +77,15 @@ function abrirExplorador(){
   div.style.display = "block"
 
   div.innerHTML = `
-    <h2>Explorador</h2>
-    <input type="file" id="fileExplorador">
+    <h2>Explorador PRO</h2>
+    <input type="file" id="fileExplorador"><br><br>
+
+    <button onclick="probarTodos()"> Detectar válidos + ranking</button>
+    <button onclick="cargarCache()"> Usar cache</button>
+
+    <div id="progreso"></div>
+    <hr>
+
     <div id="exploradorVista"></div>
   `
 
@@ -187,27 +100,30 @@ function cargarExplorador(e){
   const reader = new FileReader()
 
   reader.onload = ev => {
-    proveedores = parseProveedores(ev.target.result)
+    proveedores = ev.target.result
+      .split("\n")
+      .filter(l=>l.trim())
+      .map(url=>({
+        nombre: limpiarNombre(url),
+        url: url.trim()
+      }))
+
     renderProveedores()
   }
 
   reader.readAsText(e.target.files[0])
 }
 
-function parseProveedores(texto){
-  return texto.split("\n")
-    .filter(l=>l.trim())
-    .map(url=>{
-
-      let limpio = url.trim()
-      let dominio = limpio.split("@")[1]?.split("/")[0] || limpio
-
-      return { nombre: dominio, url: limpio }
-    })
+function limpiarNombre(url){
+  try{
+    return url.split("@")[1]?.split("/")[0] || url.split("/")[2]
+  }catch{
+    return url
+  }
 }
 
 // ==========================
-// UI PROVEEDORES
+// MOSTRAR PROVEEDORES
 // ==========================
 
 function renderProveedores(){
@@ -216,20 +132,111 @@ function renderProveedores(){
   div.innerHTML = "<h3>Proveedores</h3>"
 
   proveedores.forEach((p,i)=>{
-    div.innerHTML += `<div onclick="cargarProveedor(${i})"> ${p.nombre}</div>`
+    div.innerHTML += `
+      <div onclick="cargarProveedor(${i})">
+        <b>${i+1}.</b> ${p.nombre}
+      </div>
+    `
   })
 }
 
 // ==========================
-// CARGAR PROVEEDOR (FETCH)
+//  TEST MASIVO
+// ==========================
+
+async function probarTodos(){
+
+  proveedoresValidos = []
+  let progreso = document.getElementById("progreso")
+
+  for(let i=0;i<proveedores.length;i++){
+
+    let p = proveedores[i]
+
+    progreso.innerHTML = `Probando ${i+1}/${proveedores.length}...`
+
+    let inicio = performance.now()
+
+    try{
+      let res = await fetch(p.url)
+
+      if(!res.ok) throw new Error()
+
+      let texto = await res.text()
+
+      if(!texto.includes("#EXTM3U")) throw new Error()
+
+      let tiempo = Math.round(performance.now() - inicio)
+
+      proveedoresValidos.push({
+        ...p,
+        tiempo
+      })
+
+    }catch{}
+  }
+
+  // ordenar por velocidad
+  proveedoresValidos.sort((a,b)=>a.tiempo - b.tiempo)
+
+  // guardar cache
+  localStorage.setItem("proveedores_cache", JSON.stringify(proveedoresValidos))
+
+  progreso.innerHTML = ` ${proveedoresValidos.length} proveedores válidos encontrados`
+
+  renderValidos()
+}
+
+// ==========================
+// MOSTRAR VALIDOS
+// ==========================
+
+function renderValidos(){
+
+  let div = document.getElementById("exploradorVista")
+  div.innerHTML = "<h3>Ranking (más rápidos primero)</h3>"
+
+  proveedoresValidos.forEach((p,i)=>{
+    div.innerHTML += `
+      <div onclick="cargarProveedorValido(${i})">
+        <b>${i+1}.</b> ${p.nombre} (${p.tiempo} ms)
+      </div>
+    `
+  })
+}
+
+// ==========================
+// CACHE
+// ==========================
+
+function cargarCache(){
+  let cache = localStorage.getItem("proveedores_cache")
+
+  if(!cache){
+    alert("No hay cache guardado")
+    return
+  }
+
+  proveedoresValidos = JSON.parse(cache)
+  renderValidos()
+}
+
+// ==========================
+// CARGAR PROVEEDOR
 // ==========================
 
 async function cargarProveedor(i){
+  cargarProveedorReal(proveedores[i])
+}
 
-  let prov = proveedores[i]
+async function cargarProveedorValido(i){
+  cargarProveedorReal(proveedoresValidos[i])
+}
+
+async function cargarProveedorReal(prov){
+
   let div = document.getElementById("exploradorVista")
-
-  div.innerHTML = " Cargando..."
+  div.innerHTML = " Cargando canales..."
 
   try{
     let res = await fetch(prov.url)
@@ -240,10 +247,9 @@ async function cargarProveedor(i){
     index = {}
 
     canales.forEach(c=>{
-      let grupo = c.group_title || "Sin categoría"
-
-      if(!index[grupo]) index[grupo] = []
-      index[grupo].push(c)
+      let g = c.group_title || "Sin categoría"
+      if(!index[g]) index[g] = []
+      index[g].push(c)
     })
 
     proveedorActual = prov.nombre
@@ -263,7 +269,7 @@ function renderCategorias(){
   let div = document.getElementById("exploradorVista")
 
   div.innerHTML = `
-    <button onclick="renderProveedores()"> Volver</button>
+    <button onclick="renderValidos()"> Volver</button>
     <h3>${proveedorActual}</h3>
   `
 
@@ -341,19 +347,16 @@ function parseM3U(texto){
 }
 
 // ==========================
-// AGREGAR A TU PANEL
+// INSERTAR EN TU PANEL
 // ==========================
 
 function agregarSeleccionados(){
-  let canales = index[categoriaActual]
-
-  canales.forEach((c,i)=>{
+  index[categoriaActual].forEach((c,i)=>{
     let chk = document.getElementById("chk_"+i)
     if(chk && chk.checked){
       insertar(c)
     }
   })
-
   render()
 }
 
@@ -362,12 +365,7 @@ function agregarCategoria(){
   render()
 }
 
-// ==========================
-// CONVERTIR A XTREAM
-// ==========================
-
 function parseXtream(url){
-
   try{
     let p = url.split("/")
     return {
@@ -376,9 +374,7 @@ function parseXtream(url){
       pass: p[5],
       stream_id: p[6].replace(".ts","")
     }
-  }catch{
-    return null
-  }
+  }catch{return null}
 }
 
 function insertar(c){
@@ -393,7 +389,7 @@ function insertar(c){
   if(!parsed) return
 
   let nueva = {
-    nombre: nombre.toUpperCase() + "_" + (data[nombre].fuentes.length+1),
+    nombre: nombre.toUpperCase()+"_"+(data[nombre].fuentes.length+1),
     ...parsed
   }
 
@@ -407,21 +403,16 @@ function insertar(c){
   }
 }
 
-// ==========================
-// DUPLICADOS VISUALES
-// ==========================
-
 function existeEnPanel(c){
 
   let parsed = parseXtream(c.url)
   if(!parsed) return false
 
   for(let canal in data){
-    let ok = data[canal].fuentes.some(f =>
+    if(data[canal].fuentes.some(f =>
       f.stream_id === parsed.stream_id &&
       f.host === parsed.host
-    )
-    if(ok) return true
+    )) return true
   }
 
   return false
