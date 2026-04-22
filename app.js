@@ -128,9 +128,222 @@ function descargarJSON(){
 }
 
 function descargar(nombre, contenido){
-  let blob = new Blob([contenido])
-  let a = document.createElement("a")
-  a.href = URL.createObjectURL(blob)
+  const blob = new Blob([contenido], {type:"text/plain"})
+  const url = URL.createObjectURL(blob)
+
+  const a = document.createElement("a")
+  a.href = url
   a.download = nombre
+
+  document.body.appendChild(a)
   a.click()
+  document.body.removeChild(a)
+
+  URL.revokeObjectURL(url)
+}
+// ==========================
+// EXPLORADOR IPTV (INTEGRADO REAL)
+// ==========================
+
+let dataExplorador = []
+let indexExplorador = {}
+
+let proveedorActual = null
+let categoriaActual = null
+
+function abrirExplorador(){
+
+  let div = document.getElementById("explorador")
+  div.style.display = "block"
+
+  div.innerHTML = `
+    <h2>Explorador</h2>
+    <input type="file" id="fileExplorador">
+    <div id="exploradorVista"></div>
+  `
+
+  document.getElementById("fileExplorador").addEventListener("change", cargarExplorador)
+}
+
+function cargarExplorador(e){
+  const reader = new FileReader()
+
+  reader.onload = ev => {
+    dataExplorador = JSON.parse(ev.target.result)
+    construirIndex()
+    renderProveedores()
+  }
+
+  reader.readAsText(e.target.files[0])
+}
+
+// ==========================
+// INDEXAR
+// ==========================
+
+function construirIndex(){
+  indexExplorador = {}
+
+  dataExplorador.forEach(c => {
+
+    if(!indexExplorador[c.proveedor]){
+      indexExplorador[c.proveedor] = {}
+    }
+
+    if(!indexExplorador[c.proveedor][c.group_title]){
+      indexExplorador[c.proveedor][c.group_title] = []
+    }
+
+    indexExplorador[c.proveedor][c.group_title].push(c)
+  })
+}
+
+// ==========================
+// UI
+// ==========================
+
+function renderProveedores(){
+  let div = document.getElementById("exploradorVista")
+  div.innerHTML = "<h3>Proveedores</h3>"
+
+  Object.keys(indexExplorador).forEach(p=>{
+    div.innerHTML += `<div onclick="abrirCategorias('${p}')"> ${p}</div>`
+  })
+}
+
+function abrirCategorias(p){
+  proveedorActual = p
+
+  let div = document.getElementById("exploradorVista")
+  div.innerHTML = `<button onclick="renderProveedores()"> Volver</button>`
+  div.innerHTML += `<h3>${p}</h3>`
+
+  Object.keys(indexExplorador[p]).forEach(cat=>{
+    let total = indexExplorador[p][cat].length
+
+    div.innerHTML += `
+      <div onclick="abrirCanales('${cat}')">
+         ${cat} (${total})
+      </div>
+    `
+  })
+}
+
+function abrirCanales(cat){
+  categoriaActual = cat
+
+  let div = document.getElementById("exploradorVista")
+  let canales = indexExplorador[proveedorActual][cat]
+
+  div.innerHTML = `
+    <button onclick="abrirCategorias('${proveedorActual}')"> Volver</button>
+    <h3>${cat}</h3>
+    <button onclick="agregarCategoria()">Agregar toda la categoría</button>
+  `
+
+  canales.forEach((c,i)=>{
+
+    let existe = existeEnPanel(c)
+
+    div.innerHTML += `
+      <div style="${existe?'background:#552222':''}">
+        <input type="checkbox" id="chk_${i}">
+        ${c.name}
+      </div>
+    `
+  })
+
+  div.innerHTML += `<button onclick="agregarSeleccionados()">Agregar seleccionados</button>`
+}
+
+// ==========================
+// CONVERSIÓN A TU FORMATO
+// ==========================
+
+function parseXtream(url){
+
+  try{
+    let parts = url.split("/")
+
+    return {
+      host: parts[0] + "//" + parts[2],
+      user: parts[4],
+      pass: parts[5],
+      stream_id: parts[6].replace(".ts","")
+    }
+  }catch(e){
+    return null
+  }
+}
+
+// ==========================
+// AGREGAR AL PANEL REAL
+// ==========================
+
+function agregarSeleccionados(){
+
+  let canales = indexExplorador[proveedorActual][categoriaActual]
+
+  canales.forEach((c,i)=>{
+    let chk = document.getElementById("chk_"+i)
+
+    if(chk && chk.checked){
+      insertarEnPanel(c)
+    }
+  })
+
+  render()
+}
+
+function agregarCategoria(){
+  let canales = indexExplorador[proveedorActual][categoriaActual]
+  canales.forEach(c=>insertarEnPanel(c))
+  render()
+}
+
+function insertarEnPanel(c){
+
+  let base = c.name.trim()
+
+  if(!data[base]){
+    data[base] = { fuentes: [] }
+  }
+
+  let parsed = parseXtream(c.url)
+  if(!parsed) return
+
+  let nuevaFuente = {
+    nombre: base.toUpperCase() + "_" + (data[base].fuentes.length+1),
+    ...parsed
+  }
+
+  // evitar duplicados reales
+  let existe = data[base].fuentes.some(f =>
+    f.stream_id === nuevaFuente.stream_id &&
+    f.host === nuevaFuente.host
+  )
+
+  if(existe) return
+
+  data[base].fuentes.push(nuevaFuente)
+}
+
+// ==========================
+// DETECTAR DUPLICADOS VISUAL
+// ==========================
+
+function existeEnPanel(c){
+
+  let parsed = parseXtream(c.url)
+  if(!parsed) return false
+
+  for(let canal in data){
+    let existe = data[canal].fuentes.some(f =>
+      f.stream_id === parsed.stream_id &&
+      f.host === parsed.host
+    )
+    if(existe) return true
+  }
+
+  return false
 }
