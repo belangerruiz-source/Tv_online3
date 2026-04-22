@@ -1,3 +1,7 @@
+// ==========================
+// PANEL ORIGINAL
+// ==========================
+
 let data = {}
 
 document.getElementById("fileInput").addEventListener("change", e => {
@@ -20,9 +24,9 @@ function render() {
 
     div.innerHTML = `
       <h3>${canal}</h3>
-      <button onclick="renombrarCanal('${canal}')">‚úèÔ∏è</button>
-      <button onclick="eliminarCanal('${canal}')">üóë</button>
-      <button onclick="renumerar('${canal}')">üî¢</button>
+      <button onclick="renombrarCanal('${canal}')"></button>
+      <button onclick="eliminarCanal('${canal}')"></button>
+      <button onclick="renumerar('${canal}')"></button>
     `
 
     data[canal].fuentes.forEach((f, i) => {
@@ -32,10 +36,10 @@ function render() {
 
       fuente.innerHTML = `
         ${f.nombre}
-        <button onclick="subir('${canal}',${i})">‚¨Ü</button>
-        <button onclick="bajar('${canal}',${i})">‚¨á</button>
-        <button onclick="mover('${canal}',${i})">üì¶</button>
-        <button onclick="eliminarFuente('${canal}',${i})">‚ùå</button>
+        <button onclick="subir('${canal}',${i})"></button>
+        <button onclick="bajar('${canal}',${i})"></button>
+        <button onclick="mover('${canal}',${i})"></button>
+        <button onclick="eliminarFuente('${canal}',${i})"></button>
       `
 
       div.appendChild(fuente)
@@ -45,10 +49,13 @@ function render() {
   }
 }
 
+// ==========================
+// FUNCIONES ORIGINALES
+// ==========================
+
 function agregarCanal() {
   let nombre = prompt("Nombre del canal:")
   if (!nombre) return
-
   data[nombre] = { fuentes: [] }
   render()
 }
@@ -59,7 +66,6 @@ function renombrarCanal(canal) {
 
   data[nuevo] = data[canal]
   delete data[canal]
-
   render()
 }
 
@@ -93,18 +99,19 @@ function mover(canal,i){
 
   let f = data[canal].fuentes.splice(i,1)[0]
   data[destino].fuentes.push(f)
-
   render()
 }
 
 function renumerar(canal){
-
   data[canal].fuentes.forEach((f,i)=>{
     f.nombre = canal.toUpperCase() + "_" + (i+1)
   })
-
   render()
 }
+
+// ==========================
+// EXPORTACI”N
+// ==========================
 
 function generarM3U(limit){
 
@@ -127,6 +134,7 @@ function descargarJSON(){
   descargar("xtream_data.json", JSON.stringify(data,null,2))
 }
 
+// descarga compatible Android
 function descargar(nombre, contenido){
   const blob = new Blob([contenido], {type:"text/plain"})
   const url = URL.createObjectURL(blob)
@@ -141,19 +149,25 @@ function descargar(nombre, contenido){
 
   URL.revokeObjectURL(url)
 }
+
 // ==========================
-// EXPLORADOR IPTV (INTEGRADO REAL)
+//  EXPLORADOR PROVEEDORES
 // ==========================
 
-let dataExplorador = []
-let indexExplorador = {}
-
+let proveedores = []
+let index = {}
 let proveedorActual = null
 let categoriaActual = null
 
 function abrirExplorador(){
 
   let div = document.getElementById("explorador")
+
+  if(div.style.display === "block"){
+    div.style.display = "none"
+    return
+  }
+
   div.style.display = "block"
 
   div.innerHTML = `
@@ -165,78 +179,116 @@ function abrirExplorador(){
   document.getElementById("fileExplorador").addEventListener("change", cargarExplorador)
 }
 
+// ==========================
+// CARGAR TXT
+// ==========================
+
 function cargarExplorador(e){
   const reader = new FileReader()
 
   reader.onload = ev => {
-    dataExplorador = JSON.parse(ev.target.result)
-    construirIndex()
+    proveedores = parseProveedores(ev.target.result)
     renderProveedores()
   }
 
   reader.readAsText(e.target.files[0])
 }
 
-// ==========================
-// INDEXAR
-// ==========================
+function parseProveedores(texto){
+  return texto.split("\n")
+    .filter(l=>l.trim())
+    .map(url=>{
 
-function construirIndex(){
-  indexExplorador = {}
+      let limpio = url.trim()
+      let dominio = limpio.split("@")[1]?.split("/")[0] || limpio
 
-  dataExplorador.forEach(c => {
-
-    if(!indexExplorador[c.proveedor]){
-      indexExplorador[c.proveedor] = {}
-    }
-
-    if(!indexExplorador[c.proveedor][c.group_title]){
-      indexExplorador[c.proveedor][c.group_title] = []
-    }
-
-    indexExplorador[c.proveedor][c.group_title].push(c)
-  })
+      return { nombre: dominio, url: limpio }
+    })
 }
 
 // ==========================
-// UI
+// UI PROVEEDORES
 // ==========================
 
 function renderProveedores(){
+
   let div = document.getElementById("exploradorVista")
   div.innerHTML = "<h3>Proveedores</h3>"
 
-  Object.keys(indexExplorador).forEach(p=>{
-    div.innerHTML += `<div onclick="abrirCategorias('${p}')"> ${p}</div>`
+  proveedores.forEach((p,i)=>{
+    div.innerHTML += `<div onclick="cargarProveedor(${i})"> ${p.nombre}</div>`
   })
 }
 
-function abrirCategorias(p){
-  proveedorActual = p
+// ==========================
+// CARGAR PROVEEDOR (FETCH)
+// ==========================
+
+async function cargarProveedor(i){
+
+  let prov = proveedores[i]
+  let div = document.getElementById("exploradorVista")
+
+  div.innerHTML = " Cargando..."
+
+  try{
+    let res = await fetch(prov.url)
+    let texto = await res.text()
+
+    let canales = parseM3U(texto)
+
+    index = {}
+
+    canales.forEach(c=>{
+      let grupo = c.group_title || "Sin categorÌa"
+
+      if(!index[grupo]) index[grupo] = []
+      index[grupo].push(c)
+    })
+
+    proveedorActual = prov.nombre
+    renderCategorias()
+
+  }catch(e){
+    div.innerHTML = " Error cargando proveedor"
+  }
+}
+
+// ==========================
+// CATEGORÕAS
+// ==========================
+
+function renderCategorias(){
 
   let div = document.getElementById("exploradorVista")
-  div.innerHTML = `<button onclick="renderProveedores()"> Volver</button>`
-  div.innerHTML += `<h3>${p}</h3>`
 
-  Object.keys(indexExplorador[p]).forEach(cat=>{
-    let total = indexExplorador[p][cat].length
+  div.innerHTML = `
+    <button onclick="renderProveedores()"> Volver</button>
+    <h3>${proveedorActual}</h3>
+  `
 
+  Object.keys(index).forEach(cat=>{
     div.innerHTML += `
       <div onclick="abrirCanales('${cat}')">
-         ${cat} (${total})
+         ${cat} (${index[cat].length})
       </div>
     `
   })
 }
 
+// ==========================
+// CANALES
+// ==========================
+
 function abrirCanales(cat){
+
   categoriaActual = cat
+  let canales = index[cat]
 
   let div = document.getElementById("exploradorVista")
-  let canales = indexExplorador[proveedorActual][cat]
 
   div.innerHTML = `
-    <button onclick="abrirCategorias('${proveedorActual}')"> Volver</button>
+    <button onclick="renderCategorias()"> Volver</button>
     <h3>${cat}</h3>
     <button onclick="agregarCategoria()">Agregar toda la categorÌa</button>
   `
@@ -257,38 +309,48 @@ function abrirCanales(cat){
 }
 
 // ==========================
-// CONVERSI”N A TU FORMATO
+// PARSE M3U
 // ==========================
 
-function parseXtream(url){
+function parseM3U(texto){
 
-  try{
-    let parts = url.split("/")
+  let lineas = texto.split("\n")
+  let res = []
 
-    return {
-      host: parts[0] + "//" + parts[2],
-      user: parts[4],
-      pass: parts[5],
-      stream_id: parts[6].replace(".ts","")
+  for(let i=0;i<lineas.length;i++){
+
+    let l = lineas[i].trim()
+
+    if(l.startsWith("#EXTINF")){
+
+      let nombre = l.split(",")[1] || "Canal"
+
+      let group = "Sin categorÌa"
+      let m = l.match(/group-title="([^"]+)"/)
+      if(m) group = m[1]
+
+      let url = lineas[i+1]?.trim()
+
+      if(url){
+        res.push({ name:nombre, group_title:group, url })
+      }
     }
-  }catch(e){
-    return null
   }
+
+  return res
 }
 
 // ==========================
-// AGREGAR AL PANEL REAL
+// AGREGAR A TU PANEL
 // ==========================
 
 function agregarSeleccionados(){
-
-  let canales = indexExplorador[proveedorActual][categoriaActual]
+  let canales = index[categoriaActual]
 
   canales.forEach((c,i)=>{
     let chk = document.getElementById("chk_"+i)
-
     if(chk && chk.checked){
-      insertarEnPanel(c)
+      insertar(c)
     }
   })
 
@@ -296,40 +358,57 @@ function agregarSeleccionados(){
 }
 
 function agregarCategoria(){
-  let canales = indexExplorador[proveedorActual][categoriaActual]
-  canales.forEach(c=>insertarEnPanel(c))
+  index[categoriaActual].forEach(c=>insertar(c))
   render()
 }
 
-function insertarEnPanel(c){
+// ==========================
+// CONVERTIR A XTREAM
+// ==========================
 
-  let base = c.name.trim()
+function parseXtream(url){
 
-  if(!data[base]){
-    data[base] = { fuentes: [] }
+  try{
+    let p = url.split("/")
+    return {
+      host: p[0]+"//"+p[2],
+      user: p[4],
+      pass: p[5],
+      stream_id: p[6].replace(".ts","")
+    }
+  }catch{
+    return null
+  }
+}
+
+function insertar(c){
+
+  let nombre = c.name.trim()
+
+  if(!data[nombre]){
+    data[nombre] = { fuentes: [] }
   }
 
   let parsed = parseXtream(c.url)
   if(!parsed) return
 
-  let nuevaFuente = {
-    nombre: base.toUpperCase() + "_" + (data[base].fuentes.length+1),
+  let nueva = {
+    nombre: nombre.toUpperCase() + "_" + (data[nombre].fuentes.length+1),
     ...parsed
   }
 
-  // evitar duplicados reales
-  let existe = data[base].fuentes.some(f =>
-    f.stream_id === nuevaFuente.stream_id &&
-    f.host === nuevaFuente.host
+  let existe = data[nombre].fuentes.some(f =>
+    f.stream_id === nueva.stream_id &&
+    f.host === nueva.host
   )
 
-  if(existe) return
-
-  data[base].fuentes.push(nuevaFuente)
+  if(!existe){
+    data[nombre].fuentes.push(nueva)
+  }
 }
 
 // ==========================
-// DETECTAR DUPLICADOS VISUAL
+// DUPLICADOS VISUALES
 // ==========================
 
 function existeEnPanel(c){
@@ -338,11 +417,11 @@ function existeEnPanel(c){
   if(!parsed) return false
 
   for(let canal in data){
-    let existe = data[canal].fuentes.some(f =>
+    let ok = data[canal].fuentes.some(f =>
       f.stream_id === parsed.stream_id &&
       f.host === parsed.host
     )
-    if(existe) return true
+    if(ok) return true
   }
 
   return false
